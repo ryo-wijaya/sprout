@@ -1,5 +1,8 @@
 pragma solidity ^0.5.0;
 
+import "./NativeToken.sol";
+import "./User.sol";
+
 contract Escrow {
 
     enum EscrowStatus { AWAITING_PAYMENT, AWAITING_DELIVERY, COMPLETE, REFUNDED }
@@ -12,7 +15,10 @@ contract Escrow {
     }
 
     uint256 public numPayments = 0;
+    NativeToken nativeTokenContract;
+    User public userContract;
     mapping(uint256 => Payment) public payments;
+
 
     // Events for Payments
     event PaymentInitiated(uint256 _paymentId, address _freelancer, address _client, uint256 amount);
@@ -29,10 +35,24 @@ contract Escrow {
         require(_paymentId < numPayments, "Invalid payment ID");
         _;
     }
-    
 
-    function initiatePayment(address _freelancer, uint256 _amount) public payable differentAddresses(_freelancer, msg.sender) {
-        require(msg.value == _amount, "Sent ether does not match the specified amount");
+    //Check that person calling function is indeed a client
+    modifier isClient(User userContract) {
+        require(userContract.isClient(userId), "Only client can call function.");
+        _;
+    }
+
+    constructor(address _userAddress, address _nativeTokenAddress) public {
+        userContract = User(_userAddress); //The userclass of this address, only clients should be able to pay
+        nativeTokenContract = nativeTokenAddress;
+    }
+
+    function initiatePayment(address _freelancer, uint256 _amount) public payable differentAddresses(_freelancer, msg.sender) isClient(userContract) {
+        //require(msg.value == _amount, "Sent ether does not match the specified amount");
+        //Need check the payment to be equivalent to reward claimed in job listing
+
+        //Check that client does indeed have amount he wants to give
+        require(nativeTokenContract.checkCredit(msg.sender) >= _amount, "Client does not have enough tokens for payment")
         require(_freelancer != address(0), "Freelancer address cannot be 0");
         
         uint256 paymentId = numPayments;
@@ -41,32 +61,41 @@ contract Escrow {
         payment.freelancer = _freelancer;
         payment.amount = _amount;
         payment.status = EscrowStatus.AWAITING_PAYMENT;
+        //Client sends payment to Escrow contract
+        nativeTokenContract.transferCredit(address(this), _amount);
+        //Currently I have to allow the client to be able to spend on behalf of escrow
+        // in order for client to use the confirmDelivery function later on, if there's
+        // a better idea please edit cause this weird.
+        nativeTokenContract.approve(msg.sender, _amount);
 
         emit PaymentInitiated(paymentId, payment.freelancer, payment.client, payment.amount);
 
         numPayments++;
     }
 
-    function confirmDelivery(uint256 _paymentId) public validPaymentId(_paymentId) {
+    function confirmDelivery(uint256 _paymentId) public validPaymentId(_paymentId) isClient(userContract) {
         Payment storage payment = payments[_paymentId];
         require(payment.status == EscrowStatus.AWAITING_PAYMENT, "Invalid payment status");
         require(msg.sender == payment.client, "Invalid client sending");
-        
-        address payable freelancer = address(uint160(payment.freelancer));
-        freelancer.transfer(payment.amount);
+
+        //Client confirms delivery
         payment.status = EscrowStatus.COMPLETE;
-        
+        nativeTokenContract.transferFrom(address(this), payment.freelancer, payment.amount);
+        //Client cannot take more money out of contract
+        nativeTokenContract.approve(msg.sender, 0);
         emit PaymentComplete(_paymentId);
     }
 
-    function refundPayment(uint256 _paymentId) public validPaymentId(_paymentId) {
+    function refundPayment(uint256 _paymentId) public validPaymentId(_paymentId) isClient(userContract) {
         Payment storage payment = payments[_paymentId];
         require(payment.status == EscrowStatus.AWAITING_PAYMENT, "Invalid payment status");
-
-        address payable client = address(uint160(payment.client));
-        client.transfer(payment.amount);
+        
+        //With my current code only the client can refund payment
+        //cause only client approved to take money out of the escrow contract
         payment.status = EscrowStatus.REFUNDED;
-
+        nativeTokenContract.transferFrom(address(this), payment.client, payment.amount);
+        //Client cannot take more money out of contract
+        nativeTokenContract.approve(msg.sender, 0);
         emit PaymentRefunded(_paymentId);
     }
 

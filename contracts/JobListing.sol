@@ -1,5 +1,6 @@
 pragma solidity ^0.5.0;
 import "./User.sol";
+import "./NativeToken.sol";
 
 contract JobListing {
     
@@ -18,6 +19,7 @@ contract JobListing {
     }
 
     User public userContract;
+    NativeToken nativeTokenContract;
     uint256 public jobCount = 0;
     mapping(uint256 => Job) public jobs; // Get job details here by jobId
 
@@ -31,13 +33,14 @@ contract JobListing {
     event JobClosed(uint256 jobId, string title);
     event ApplicationCreated(uint256 jobId, uint256 applicationId);
 
-    constructor(address _userAddress) public {
+    constructor(address _userAddress, address _nativeTokenAddress) public {
         userContract = User(_userAddress);
+        nativeTokenContract = nativeTokenAddress;
     }
 
     function createJob(uint256 userId, string memory title, string memory description, uint256 reward) public {
         require(userContract.isClient(userId), "Only clients can create jobs.");
-
+        require(nativeTokenContract.checkCredit(msg.sender) >= reward, "Client does not have enough tokens for reward");
         jobCount++;
         Job memory newJob = Job({
             userId: userId,
@@ -64,7 +67,8 @@ contract JobListing {
 
     function applyForJob(uint256 userId, uint256 jobId, string memory proposal) public {
         require(jobs[jobId].isOpen, "Job is not open for applications");
-        // put check here so only freelancers can apply
+        // Check so only freelancers can apply
+        require(userContract.isFreelancer(userId), "Only freelancers can take jobs.");
         // put check here such that once you apply you cannot reapply
 
         applicationCount++;
@@ -80,5 +84,6 @@ contract JobListing {
 
     function acceptApplication(uint256 applicationId) public {
         // verify that only the client who posted the job can accept the application
+
     }
 }
