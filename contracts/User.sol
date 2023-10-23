@@ -53,11 +53,13 @@ contract User {
     * Register a user profile.
     *
     * Considerations:
+    * - UserType must be valid
     * - Username must be unique
     * - There can only be one profile of each user type per address
     * - At least 0.01 ETH is needed to spawn a new user
     */
     function register(UserType userType, string memory username, string memory name, string memory email, string memory bio) public payable {
+        require(userType >= UserType.Freelancer && userType <= UserType.Reviewer, "Invalid user type provided.");
         require(usernamesToUserId[username] == 0, "Username already exists.");
         require(addressToUserTypeId[msg.sender][uint(userType)] == 0, "User of this type already exists for this address.");  
         require(msg.value >= 0.01 ether, "At least 0.01 ETH is needed to spawn a new user.");
