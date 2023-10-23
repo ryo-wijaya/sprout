@@ -30,16 +30,16 @@ contract JobListing {
         bool isAccepted;
     }
 
-    User public userContract;
+    User userContract;
     NativeToken nativeTokenContract;
-    uint256 public jobCount = 0;
-    mapping(uint256 => Job) public jobs; // Get job details here by jobId
+    uint256 private jobCount = 0;
+    mapping(uint256 => Job) jobs; // Get job details here by jobId
     // This is a mapping of job -> applications -> application
     // jobApplications[jobId] -> All the applications for that job
     // jobApplications[jobId][applicationId] -> A specific application for that job
-    mapping(uint256 => mapping(uint256 => Application)) public jobApplications;
+    mapping(uint256 => mapping(uint256 => Application)) private jobApplications;
     // This is to keep track of the number of applications for a job
-    mapping(uint256 => uint256) public jobApplicationCounts;
+    mapping(uint256 => uint256) private jobApplicationCounts;
 
     constructor(address _userAddress, address _nativeTokenAddress) public {
         userContract = User(_userAddress);

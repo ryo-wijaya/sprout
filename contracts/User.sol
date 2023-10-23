@@ -15,13 +15,13 @@ contract User {
         uint256 rating;
     }
 
-    uint256 public numUsers = 1;
-    mapping(uint256 => UserProfile) public users;
+    uint256 private numUsers = 1;
+    mapping(uint256 => UserProfile) private users;
     // This is a mapping of address -> userType (0 means Freelancer) -> userId
-    mapping(address => mapping(uint256 => uint256)) public addressToUserTypeId;
-    mapping(uint256 => address) public userIdToAddress; // reverse mapping
-    mapping(string => uint256) public usernamesToUserId;
-    uint256[] public userList; // This is to display lists of users on the frontend
+    mapping(address => mapping(uint256 => uint256)) private addressToUserTypeId;
+    mapping(uint256 => address) private userIdToAddress; // reverse mapping
+    mapping(string => uint256) private usernamesToUserId;
+    uint256[] private userList; // This is to display lists of users on the frontend
     // ===================================================== SCHEMA & STATE VARIABLES ===================================================== //
     
 
