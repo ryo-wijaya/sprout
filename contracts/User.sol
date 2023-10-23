@@ -2,6 +2,7 @@ pragma solidity ^0.5.0;
 
 contract User {
 
+    // ===================================================== SCHEMA & STATE VARIABLES ===================================================== //
     enum UserType {Freelancer, Client, Reviewer}
     
     struct UserProfile {
@@ -10,16 +11,21 @@ contract User {
         string name;
         string email; 
         string bio;
-        // bool isVerified;
         uint256 rating;
     }
 
     uint256 public numUsers = 1;
     mapping(uint256 => UserProfile) public users;
-    mapping(address => uint256) public addressToUserId;
+    // This is a mapping of address -> userType (0 means Freelancer) -> userId
+    mapping(address => mapping(uint256 => uint256)) public addressToUserTypeId;
+    mapping(uint256 => address) public userIdToAddress; // reverse mapping
     mapping(string => uint256) public usernamesToUserId;
     uint256[] public userList; // This is to display lists of users on the frontend
+    // ===================================================== SCHEMA & STATE VARIABLES ===================================================== //
     
+
+
+    // ====================================================== EVENTS & MODIFIERS ========================================================== //
     event NewUserRegistered(uint256 userId, UserType userType);
     event UserUpdated(uint256 userId);
 
@@ -29,7 +35,7 @@ contract User {
     }
 
     modifier onlyOwner(uint256 userId) {
-        require(addressToUserId[msg.sender] == userId, "You are not the owner of this profile");
+        require(addressToUserTypeId[msg.sender][uint(users[userId].userType)] == userId, "You are not the owner of this profile");
         _;
     }
 
@@ -37,9 +43,22 @@ contract User {
         require(userId <= numUsers, "Invalid user ID");
         _;
     }
+    // ====================================================== EVENTS & MODIFIERS ========================================================== //
 
+
+
+    // ============================================================== METHODS ============================================================= //
+    /**
+    * Register a user profile.
+    *
+    * Considerations:
+    * - Username must be unique
+    * - There can only be one profile of each user type per address
+    * - At least 0.01 ETH is needed to spawn a new user
+    */
     function register(UserType userType, string memory username, string memory name, string memory email, string memory bio) public payable {
-        require(usernamesToUserId[username] == 0, "Username already exists.");  // Check if username is already taken
+        require(usernamesToUserId[username] == 0, "Username already exists.");
+        require(addressToUserTypeId[msg.sender][uint(userType)] == 0, "User of this type already exists for this address.");  
         require(msg.value >= 0.01 ether, "At least 0.01 ETH is needed to spawn a new user.");
 
         UserProfile memory newUser;
@@ -48,19 +67,25 @@ contract User {
         newUser.name = name;
         newUser.email = email;
         newUser.bio = bio;
-        // newUser.isVerified = false; 
         newUser.rating = 0;
 
         uint256 userId = numUsers++;
 
         users[userId] = newUser;
-        addressToUserId[msg.sender] = userId;
+        addressToUserTypeId[msg.sender][uint(userType)] = userId;
+        userIdToAddress[userId] = msg.sender; // populate the reverse mapping
         usernamesToUserId[username] = userId;
         userList.push(userId);
         
         emit NewUserRegistered(userId, userType);
     }
 
+    /**
+    * Update the details of a user profile. Only the name, email address and bio can be updated.
+    *
+    * Considerations:
+    * - You must be the owner of the profile, which implies you must be a registered user
+    */
     function updateUserDetails(uint256 userId, string memory name, string memory email, string memory bio) public onlyUser(userId) onlyOwner(userId) validUserId(userId) {
         users[userId].name = name;
         users[userId].email = email;
@@ -69,25 +94,58 @@ contract User {
         emit UserUpdated(userId);
     }
 
-    // How to verify without making it centralized? Maybe we can have some sort of vouching system?
-    // function setVerificationStatus(address _user, bool _status) public onlyOwner {
-        // KIV: Add logic to verfiy here (Only admin roles can call this function)
-    //     users[_user].isVerified = _status;
-    // }
+    /**
+    * Deletes a user profile and returns the funds to the owner.
+    * 
+    * Considerations: 
+    * - Only the owner of the profile can delete it
+    * - The profile must have no ongoing ops
+    */
+    function deleteUserProfile(uint256 userId) public view {
+        // TODO
+        // I think we should get rid of this use case as it adds complexity and not really neccessary, do yall agree?
+    }
 
+    /**
+    * Get the total number of users in the application
+    */
     function getTotalUsers() public view returns(uint256) {
         return userList.length;
     }
 
+    /**
+    * Get the address from a given userId
+    */
+    function getAddressFromUserId(uint256 userId) public view returns(address) {
+        return userIdToAddress[userId];
+    }
+
+    /**
+    * Checks if 2 users share the same address, uses the reverse mapping
+    */
+    function haveSameAddress(uint256 userId1, uint256 userId2) public view returns(bool) {
+        return userIdToAddress[userId1] == userIdToAddress[userId2];
+    }
+
+    /**
+    * Checks if a user is a client
+    */
     function isClient(uint256 userId) public view returns(bool) {
         return users[userId].userType == UserType.Client;
     }
 
+    /**
+    * Checks if a user is a freelancer
+    */
     function isFreelancer(uint256 userId) public view returns(bool) {
         return users[userId].userType == UserType.Freelancer;
     }
 
+    /**
+    * Checks if a user is a reviewer
+    */
     function isReviewer(uint256 userId) public view returns(bool) {
         return users[userId].userType == UserType.Reviewer;
     }
+    // ============================================================== METHODS ============================================================= //
 }
