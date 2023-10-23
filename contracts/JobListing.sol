@@ -40,7 +40,6 @@ contract JobListing {
     mapping(uint256 => mapping(uint256 => Application)) public jobApplications;
     // This is to keep track of the number of applications for a job
     mapping(uint256 => uint256) public jobApplicationCounts;
-    uint256 public applicationCount = 0;
 
     constructor(address _userAddress, address _nativeTokenAddress) public {
         userContract = User(_userAddress);
@@ -125,7 +124,7 @@ contract JobListing {
 
         // Check if there are applications for the job
         bool hasApplications = false;
-        for(uint256 i = 1; i <= applicationCount; i++) {
+        for(uint256 i = 1; i <= jobApplicationCounts[jobId]; i++) {
             if(jobApplications[jobId][i].freelancerId != 0) {
                 hasApplications = true;
                 break;
@@ -164,8 +163,7 @@ contract JobListing {
         jobs[jobId].status = JobStatus.CLOSED;
 
         // Wipe all applications for this job
-        uint256 applicationsForJob = jobApplicationCounts[jobId];
-        for (uint256 i = 1; i <= applicationsForJob; i++) {
+        for (uint256 i = 1; i <= jobApplicationCounts[jobId]; i++) {
             delete jobApplications[jobId][i];
         }
         emit JobClosed(jobId, jobs[jobId].title);
@@ -219,7 +217,7 @@ contract JobListing {
         uint256 applicationIdForJob = jobApplicationCounts[jobId];
         jobApplications[jobId][applicationIdForJob] = newApplication;
 
-        emit ApplicationCreated(jobId, applicationCount);
+        emit ApplicationCreated(jobId, jobApplicationCounts[jobId]);
     }
 
     /**
@@ -289,8 +287,7 @@ contract JobListing {
         // TODO: Instruct escrow contract to release payment
 
         // Clear all associated applications with this job and close it
-        uint256 applicationsForJob = jobApplicationCounts[jobId];
-        for (uint256 i = 1; i <= applicationsForJob; i++) {
+        for (uint256 i = 1; i <= jobApplicationCounts[jobId]; i++) {
             delete jobApplications[jobId][i];
         }
 
