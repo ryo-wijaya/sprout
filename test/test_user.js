@@ -13,10 +13,13 @@ contract("User", (accounts) => {
     userInstance = await User.deployed();
   });
 
-  it("Test SUCCESS: regisering a user profile", async () => {
-    await userInstance.register(0, "username1", "name1", "email1@example.com", "bio1", {
+  it("Test SUCCESS: regisering a user profile (freelancer)", async () => {
+    let result = await userInstance.register(0, "username1", "name1", "email1@example.com", "bio1", {
       from: user1,
       value: web3.utils.toWei("0.01", "ether"),
+    });
+    truffleAssert.eventEmitted(result, "NewUserRegistered", (ev) => {
+      return ev.userId.toNumber() === 1 && ev.userType.toNumber() === 0; // 0 corresponds to UserType.Freelancer for the 2nd predicate
     });
     const userDetails = await userInstance.getUserDetails(1);
     assert.equal(userDetails[1], "username1", "Username mismatch");
@@ -24,8 +27,17 @@ contract("User", (accounts) => {
   });
 
   it("Test SUCCESS: updating a user a profile details", async () => {
-    await userInstance.updateUserDetails(1, "name1_updated", "email1_updated@example.com", "bio1_updated", {
-      from: user1,
+    let result = await userInstance.updateUserDetails(
+      1,
+      "name1_updated",
+      "email1_updated@example.com",
+      "bio1_updated",
+      {
+        from: user1,
+      }
+    );
+    truffleAssert.eventEmitted(result, "UserUpdated", (ev) => {
+      return ev.userId.toNumber() === 1;
     });
     const userDetails = await userInstance.getUserDetails(1);
     assert.equal(userDetails[2], "name1_updated", "Name update failed");
