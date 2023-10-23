@@ -44,6 +44,7 @@ contract JobListing {
 
     // ====================================================== EVENTS & MODIFIERS ========================================================== //
     event JobCreated(uint256 jobId, string title);
+    event JobUpdated(uint256 jobId, string title);
     event JobClosed(uint256 jobId, string title);
     event ApplicationCreated(uint256 jobId, uint256 applicationId);
     event ApplicationAccepted(uint256 jobId, uint256 applicationId, uint256 freelancerId);
@@ -97,6 +98,45 @@ contract JobListing {
         jobs[jobCount] = newJob;
         emit JobCreated(jobCount, title);
     }
+
+    /**
+    * Edit a job details.
+    *
+    * Considerations:
+    * - You must be who you say you are (userId wise)
+    * - The userId must be valid
+    * - The jobId must be valid
+    * - Only the client who made the job post can edit it
+    * - Only a job that has no applications can be edited
+    * - Do a check for the job to be not ongoing (The above condition makes this redundant but this is just for safety)
+    */
+    function updateJob(uint256 clientId, uint256 jobId, string memory title, string memory description, string memory startDate, string memory endDate, uint256 reward) public userIdMatches(clientId) validJobId(jobId) {
+        Job storage job = jobs[jobId];
+
+        require(job.clientId == clientId, "Only the client who made the job post can edit it.");
+        require(!job.isOngoing, "Job is ongoing and cannot be edited.");
+
+        // Check if there are applications for the job
+        bool hasApplications = false;
+        for(uint256 i = 1; i <= applicationCount; i++) {
+            if(jobApplications[jobId][i].freelancerId != 0) {
+                hasApplications = true;
+                break;
+            }
+        }
+
+        // ideally this should be another field in the Job struct but lazy ah
+        require(!hasApplications, "Job that has applications cannot be edited.");
+        
+        job.title = title;
+        job.description = description;
+        job.startDate = startDate;
+        job.endDate = endDate;
+        job.reward = reward;
+
+        emit JobUpdated(jobId, title);
+    }
+
 
     /**
     * A Client can close a job and re-open it some time in the future.

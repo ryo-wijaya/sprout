@@ -5,6 +5,7 @@ contract User {
     // ===================================================== SCHEMA & STATE VARIABLES ===================================================== //
     enum UserType {Freelancer, Client, Reviewer}
     
+    // Password is omitted for simplicity
     struct UserProfile {
         UserType userType;
         string username;
@@ -92,6 +93,14 @@ contract User {
         users[userId].bio = bio;
 
         emit UserUpdated(userId);
+    }
+
+    /**
+    * Return the user profile details (Meant for FE use as a custom getter)
+    */
+    function getUserDetails(uint256 userId) public view validUserId(userId) returns (UserType, string memory, string memory, string memory, string memory, uint256) {
+        UserProfile memory userProfile = users[userId];
+        return (userProfile.userType, userProfile.username, userProfile.name, userProfile.email, userProfile.bio, userProfile.rating);
     }
 
     /**
