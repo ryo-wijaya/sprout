@@ -1,5 +1,7 @@
 pragma solidity ^0.5.0;
 
+import "./User.sol";
+
 contract FreelanceReview {
 
     struct Review {
@@ -9,14 +11,63 @@ contract FreelanceReview {
         string comments;
     }
 
+
     uint256 public reviewCount = 0;
-    mapping(uint256 => Review) public reviews;
+    mapping(uint256 => Review) public reviews; // mapping of reviews and ids
+    mapping(uint256 => Review[]) public userToReviews; // mapping of userIds and their reviews in an array
+    mapping(uint256 => uint256) public userToRatings; // mapping of userIds and their ratings
+    User public userContract; // Reference to the User Contract
 
-    function createFreelancerReview(uint256 freelancerId, uint256 jobId, uint256 rating, string memory comments) public {
+    event FreelancerReviewed(uint256 _freelancerId);
+    event ClientReviewed(uint256 _clientId);
+
+    constructor(address _userContract) public {
+        userContract = User(_userContract); 
+    }
+
+    // modifiers
+    modifier isFreelancer(uint256 _freelancerId) {
+        require(userContract.isFreelancer(_freelancerId), "User is not a freelancer");
+        _;
+    }
+
+    modifier isClient(uint256 _clientId) {
+        require(userContract.isClient(_clientId), "User is not a client");
+        _;
+    }
+
+
+    function createFreelancerReview(uint256 _clientId, uint256 _freelancerId, uint256 _rating, string memory _comments) isFreelancer(_freelancerId) isClient(_clientId) public {
+        require(userContract.getAddressFromUserId(_clientId) == msg.sender, "This userId does not correspond to yourself");
+        require(_rating >= 1 && _rating <= 5, "Invalid _rating, _rating is a range between 1-5");
+
+        Review storage review = reviews[reviewCount];
+        review.reviewerId = _clientId; 
+        review.freelancerId = _freelancerId;
+        review.rating = _rating;
+        review.comments = _comments;
+
+        userToReviews[_freelancerId].push(review);
+
+        // update the rating from the freelancer's previous ratings by taking the average
+        uint256 newRating = (userToRatings[_freelancerId] + _rating) / userToReviews[_freelancerId].length;
+        userToRatings[_freelancerId] = newRating;
+
+
+        reviewCount++;
+
+        emit FreelancerReviewed(_freelancerId);
+
+    }
+
+    function createClientReview(uint256 _clientId, uint256 jobId, uint256 rating, string memory comments) public {
         // verify job is completed
     }
 
-    function createClientReview(uint256 clientId, uint256 jobId, uint256 rating, string memory comments) public {
-        // verify job is completed
+    // Getter functions
+    function getFreelancerRating(uint256 _freelancerId) public view isFreelancer(_freelancerId) returns (uint256) {
+        return userToRatings[_freelancerId];
     }
+
+    // how to get the array of reviews for each freelancer?
 }
