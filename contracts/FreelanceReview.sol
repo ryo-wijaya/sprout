@@ -15,7 +15,8 @@ contract FreelanceReview {
     uint256 public reviewCount = 0;
     mapping(uint256 => Review) public reviews; // mapping of reviews and ids
     mapping(uint256 => Review[]) public userToReviews; // mapping of userIds and their reviews in an array
-    mapping(uint256 => uint256) public userToRatings; // mapping of userIds and their ratings
+    mapping(uint256 => uint256[]) public userToRatings; // mapping of userIds and their array of ratings
+    mapping(uint256 => uint256) public userToAvgRatings;
     User public userContract; // Reference to the User Contract
 
     event FreelancerReviewed(uint256 _freelancerId);
@@ -50,9 +51,13 @@ contract FreelanceReview {
         userToReviews[_freelancerId].push(review);
 
         // update the rating from the freelancer's previous ratings by taking the average
-        uint256 newRating = (userToRatings[_freelancerId] + _rating) / userToReviews[_freelancerId].length;
-        userToRatings[_freelancerId] = newRating;
-
+        userToRatings[_freelancerId].push(_rating);
+        uint256 newRating = 0;
+        uint256[] storage userRatings = userToRatings[_freelancerId];
+        for (uint256 i = 0; i < userRatings.length; i++) {
+            newRating += userRatings[i];
+        }
+        userToAvgRatings[_freelancerId] = newRating / userRatings.length;
 
         reviewCount++;
 
@@ -66,7 +71,7 @@ contract FreelanceReview {
 
     // Getter functions
     function getFreelancerRating(uint256 _freelancerId) public view isFreelancer(_freelancerId) returns (uint256) {
-        return userToRatings[_freelancerId];
+        return userToAvgRatings[_freelancerId];
     }
 
     // how to get the array of reviews for each freelancer?
