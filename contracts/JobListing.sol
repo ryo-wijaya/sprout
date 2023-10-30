@@ -330,5 +330,25 @@ contract JobListing {
     function getApplicationCountForJob(uint256 jobId) public view validJobId(jobId) returns(uint256) {
         return jobApplicationCounts[jobId];
     }
+
+        /**
+    * Return True if Job is completed
+    * 
+    * Considerations:
+    * - The jobId must be valid
+    */
+    function isJobCompleted(uint256 _jobId) public view validJobId(_jobId) returns(bool) {
+        return jobs[_jobId].status == JobStatus.COMPLETED;
+    }
+
+    /**
+    * Return True if Job is Ongoing --> Client has accepted Freelancer
+    * 
+    * Considerations:
+    * - The jobId must be valid
+    */
+    function isJobOngoing(uint256 _jobId) public view validJobId(_jobId) returns(bool) {
+        return jobs[_jobId].status == JobStatus.ONGOING;
+    }
     // ============================================================== METHODS ============================================================= //
 }
