@@ -40,9 +40,9 @@ contract JobListing {
     // This is to keep track of the number of applications for a job
     mapping(uint256 => uint256) private jobApplicationCounts;
 
-    constructor(address _userAddress, address _nativeTokenAddress) public {
-        userContract = User(_userAddress);
-        nativeTokenContract = NativeToken(_nativeTokenAddress);
+    constructor(address userAddress, address nativeTokenAddress) public {
+        userContract = User(userAddress);
+        nativeTokenContract = NativeToken(nativeTokenAddress);
     }
     // ===================================================== SCHEMA & STATE VARIABLES ===================================================== //
 
@@ -368,6 +368,20 @@ contract JobListing {
 
     function isValidJob(uint256 jobId) public view returns (bool) {
         return (jobId > 0 && jobId <= jobCount);
+    }
+
+    // These are only because state variables arre made private, remove and amend usage if this changes
+
+    function getJobStatus(uint256 jobId) public view validJobId(jobId) returns (JobStatus) {
+        return jobs[jobId].status;
+    }
+
+    function getJobClient(uint256 jobId) public view validJobId(jobId) returns (uint256) {
+        return jobs[jobId].clientId;
+    }
+
+    function getJobFreelancer(uint256 jobId) public view validJobId(jobId) returns (uint256) {
+        return jobs[jobId].acceptedFreelancerId;
     }
 
     // ============================================================== METHODS ============================================================= //

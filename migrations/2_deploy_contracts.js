@@ -9,7 +9,7 @@ module.exports = async (deployer, network, accounts) => {
   await deployer.deploy(User);
   await deployer.deploy(NativeToken);
   // await deployer.deploy(Escrow);
-  // await deployer.deploy(DisputeResolutionDAO);
   await deployer.deploy(JobListing, User.address, NativeToken.address);
   // await deployer.deploy(JobReview, User.address, JobListing.address);
+  // await deployer.deploy(DisputeResolutionDAO, User.address, Escrow.address, JobListing.address);
 };
