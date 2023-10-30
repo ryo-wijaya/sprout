@@ -5,6 +5,13 @@ var User = artifacts.require("User");
 var JobListing = artifacts.require("JobListing");
 var NativeToken = artifacts.require("NativeToken");
 
+// Helper functions
+function generateUnixTime(daysFromNow) {
+  const now = new Date();
+  now.setDate(now.getDate() + daysFromNow);
+  return Math.floor(now.getTime() / 1000);
+}
+
 contract("JobListing", (accounts) => {
   let userInstance;
   const owner = accounts[0];

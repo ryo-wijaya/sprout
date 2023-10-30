@@ -17,9 +17,8 @@ contract JobListing {
         uint256 clientId;
         uint256 acceptedFreelancerId; // This should be cleared after a job is done
         string title;
-        string description;
-        string startDate;
-        string endDate;
+        string description;        
+        uint256 endTime;
         uint256 reward;
         JobStatus status;
     }
@@ -65,7 +64,7 @@ contract JobListing {
     }
 
     modifier validJobId(uint256 jobId) {
-        require(jobId > 0 && jobId <= jobCount, "Invalid Job ID");
+        require(isValidJob(jobId), "Invalid Job ID");
         _;
     }
 
@@ -86,18 +85,19 @@ contract JobListing {
     * - The userId must be valid
     * - Only clients can create jobs
     * - You need to have enough tokens to pay the reward
+    * - The endTime is at least 3 days in the future
     */
-    function createJob(uint256 clientId, string memory title, string memory description, string memory startDate, string memory endDate, uint256 reward) public userIdMatches(clientId) {
+    function createJob(uint256 clientId, string memory title, string memory description, uint256 endTime, uint256 reward) public userIdMatches(clientId) {
         require(userContract.isClient(clientId), "Only clients can create jobs.");
         require(nativeTokenContract.checkCredit(msg.sender) >= reward, "Client does not have enough tokens for reward.");
+        require(isValidEndTime(endTime), "The end time must be at least 3 days from now.");
         jobCount++;
         Job memory newJob = Job({
             clientId: clientId,
             acceptedFreelancerId: 0, // This basically means null, userIds start from 1
             title: title,
             description: description,
-            startDate: startDate,
-            endDate: endDate,
+            endTime: endTime,
             reward: reward,
             status: JobStatus.OPEN
         });
@@ -115,12 +115,14 @@ contract JobListing {
     * - Only the client who made the job post can edit it
     * - Only a job that has no applications can be edited
     * - Do a check for the job to be not ongoing (The above condition makes this redundant but this is just for safety)
+    * - The endTime is in the future
     */
-    function updateJob(uint256 clientId, uint256 jobId, string memory title, string memory description, string memory startDate, string memory endDate, uint256 reward) public userIdMatches(clientId) validJobId(jobId) {
+    function updateJob(uint256 clientId, uint256 jobId, string memory title, string memory description, uint256 endTime, uint256 reward) public userIdMatches(clientId) validJobId(jobId) {
         Job storage job = jobs[jobId];
 
         require(job.clientId == clientId, "Only the client who made the job post can edit it.");
         require(job.status != JobStatus.ONGOING && job.status != JobStatus.COMPLETED, "Job is ONGOING or COMPLETED and cannot be edited.");
+        require(isValidTime(endTime), "The end time must be in the future.");
 
         // Check if there are applications for the job
         bool hasApplications = false;
@@ -136,8 +138,7 @@ contract JobListing {
         
         job.title = title;
         job.description = description;
-        job.startDate = startDate;
-        job.endDate = endDate;
+        job.endTime = endTime;
         job.reward = reward;
 
         emit JobUpdated(jobId, title);
@@ -151,8 +152,7 @@ contract JobListing {
     * - You must be who you say you are (userId wise)
     * - The userId must be valid
     * - The jobId must be valid
-    * - Once a job is closed, no more applications should be able to be made
-    * - Once a job is closed, all applications tied to it are wiped
+    * - Once a job is closed, applications are paused
     * - A job that is ongoing cannot be closed
     * - Only the client who posted the job can close it
     */
@@ -161,11 +161,7 @@ contract JobListing {
         require(jobs[jobId].status == JobStatus.OPEN, "This job is currently ONGOING and cannot be closed.");
 
         jobs[jobId].status = JobStatus.CLOSED;
-
-        // Wipe all applications for this job
-        for (uint256 i = 1; i <= jobApplicationCounts[jobId]; i++) {
-            delete jobApplications[jobId][i];
-        }
+        
         emit JobClosed(jobId, jobs[jobId].title);
     }
 
@@ -179,12 +175,16 @@ contract JobListing {
     * - The jobId must be valid
     * - The job must be in the CLOSED status
     * - Only the client who posted the job can re-open it
+    * - The endTime must be in the future
     */
     function reopenJob(uint256 clientId, uint256 jobId) public validJobId(jobId) userIdMatches(clientId) {
+        Job storage job = jobs[jobId];
+
         require(jobs[jobId].clientId == clientId, "Only the client who posted the job can re-open it.");
         require(jobs[jobId].status == JobStatus.CLOSED, "This job is not currently CLOSED.");
+        require(isValidTime(job.endTime), "The end time must be in the future.");
 
-        jobs[jobId].status = JobStatus.OPEN;
+        job.status = JobStatus.OPEN;
 
         emit JobOpened(jobId, jobs[jobId].title); 
     }
@@ -331,7 +331,7 @@ contract JobListing {
         return jobApplicationCounts[jobId];
     }
 
-        /**
+    /**
     * Return True if Job is completed
     * 
     * Considerations:
@@ -350,5 +350,25 @@ contract JobListing {
     function isJobOngoing(uint256 _jobId) public view validJobId(_jobId) returns(bool) {
         return jobs[_jobId].status == JobStatus.ONGOING;
     }
+
+    /**
+    * Checks if a given startTime and endTime unix epoch int is valid
+    * 
+    * Considerations:
+    * - The endTime must be at least 3 days from now
+    */
+    function isValidEndTime(uint256 endTime) public view returns (bool) {
+        return (endTime >= block.timestamp + 3 days);
+    }
+
+    // Checks if the endTime is in the future
+    function isValidTime(uint256 endTime) public view returns (bool) {
+        return (endTime >= block.timestamp);
+    }
+
+    function isValidJob(uint256 jobId) public view returns (bool) {
+        return (jobId > 0 && jobId <= jobCount);
+    }
+
     // ============================================================== METHODS ============================================================= //
 }
