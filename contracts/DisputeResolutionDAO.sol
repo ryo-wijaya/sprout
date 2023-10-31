@@ -113,6 +113,9 @@ contract DisputeResolutionDAO {
 
     /**
      * Resolve an existing dispute.
+     * There are 2 ways this should be triggered in production:
+     *      1. The endTime has passed, and the dispute is still in the PENDING status, and someone attempts a vote (passive closure)
+     *      2. Some sort of CRON functionality provided by external services e.g. Ethereum Alarm Clock
      *
      * Considerations:
      * - Voting period must have ended
