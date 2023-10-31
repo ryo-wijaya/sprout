@@ -121,6 +121,7 @@ contract DisputeResolutionDAO {
         Dispute storage dispute = disputes[disputeId];
         require(now > dispute.endTime, "Voting period has not ended.");
         require(dispute.status == DisputeStatus.PENDING, "Dispute already resolved.");
+        Vote winningVote;
 
         if (dispute.approveVotes >= dispute.rejectVotes) {
             dispute.status = DisputeStatus.APPROVED;
