@@ -340,6 +340,15 @@ contract JobListing {
     }
 
     /**
+    * Return True if Job is closed
+    * 
+    * Considerations:
+    * - The jobId must be valid
+    */
+    function isJobClosed(uint256 _jobId) public view validJobId(_jobId) returns(bool) {
+        return jobs[_jobId].status == JobStatus.PERMANENTLY_CLOSED;
+    }
+    /**
     * Return True if Job is Ongoing --> Client has accepted Freelancer
     * 
     * Considerations:
