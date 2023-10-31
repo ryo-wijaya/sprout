@@ -33,7 +33,7 @@ contract DisputeResolutionDAO {
     */
 
     // ===================================================== SCHEMA & STATE VARIABLES ===================================================== //
-    enum Vote { APPROVE, REJECT }
+    enum Vote { NONE, APPROVE, REJECT }
     enum DisputeStatus { PENDING, APPROVED, REJECTED }
 
     struct Dispute {
@@ -51,8 +51,9 @@ contract DisputeResolutionDAO {
     uint256 private disputeCount = 0;
     mapping(uint256 => Dispute) public disputes; // disputeID to dispute
     mapping(uint256 => bool) public isDisputed; // JobID to boolean to check to whether a dispute has been made (O(1))
-    mapping(uint256 => mapping(uint256 => bool)) public hasVoted; // Keeps track of who has voted for a given dispute, disputeId -> userId -> bool
     mapping(uint256 => uint256[]) public disputeVoters; // keeps track of all voters IDs for a disputeId
+    mapping(uint256 => mapping(uint256 => Vote)) public mapUserToVote; // disputeId -> userId -> Vote
+
 
 
     constructor(address userAddress, address jobListingAddress, address escrowAddress) public {
@@ -95,7 +96,7 @@ contract DisputeResolutionDAO {
     function startDispute(uint256 clientId, uint256 jobId) external userIdMatches(clientId) {
         require(jobListingContract.isValidJob(jobId), "Invalid jobId");
         require(!isDisputed[jobId], "Job has already been disputed");
-        require(jobListingContract.getjobStatus(jobId) == JobListingContract.JobStatus.COMPLETED, "Job is not in the completed status");
+        require(jobListingContract.getJobStatus(jobId) == JobListingContract.JobStatus.COMPLETED, "Job is not in the completed status");
         require(jobListingContract.getJobClient(jobId) == clientId, "Only the client associated with the job can initiate a dispute");
 
         disputeCount++;
@@ -151,9 +152,9 @@ contract DisputeResolutionDAO {
 
         require(disputes[disputeId].status == DisputeStatus.PENDING, "Dispute already resolved or does not exist.");
         require(userContract.isReviewer(reviewerId), "Only reviewers can review.");
-        require(hasVoted[disputeId][reviewerId] == false, "Reviewer has already voted.");
-        require(UserContract.haveSameAddress(jobListingContract.getFreelancer(dispute.jobId), reviewerId), "You are the freelancer for this job, you can't vote on your own job.");
-        require(UserContract.haveSameAddress(jobListingContract.getClient(dispute.jobId), reviewerId), "You are the client for this job, you can't vote on your own job.");
+        require(mapUserToVote[disputeId][reviewerId] == Vote.NONE, "Reviewer has already voted");
+        require(!userContract.haveSameAddress(jobListingContract.getFreelancer(dispute.jobId), reviewerId), "You are the freelancer for this job, you can't vote on your own job.");
+        require(!userContract.haveSameAddress(jobListingContract.getClient(dispute.jobId), reviewerId), "You are the client for this job, you can't vote on your own job.");
 
         // If vote attempt is made after the endTime, resolve the dispute (passive closure)
         if (block.timestamp > disputes[disputeId].endTime) {
@@ -166,8 +167,8 @@ contract DisputeResolutionDAO {
         } else if (voteChoice == Vote.REJECT) {
             disputes[disputeId].rejectVotes += 1;
         }
-        
-        hasVoted[disputeId][reviewerId] = true;
+
+        mapUserToVote[disputeId][reviewerId] = voteChoice;
         disputeVoters[disputeId].push(reviewerId);
         emit voted(disputeId, reviewerId, voteChoice);
     }
@@ -177,7 +178,7 @@ contract DisputeResolutionDAO {
         // If there are more than 10 reviewers of the winning majority, we will randomly pick 10 of them. (1 token each)
         // If there are less than 10 reviewers of the winning majority, we will distribute 1 token each to them. The rest will be refunded to the client.
         Dispute storage dispute = disputes[disputeId];
-        require(disputeStatus == DisputeStatus.APPROVED || disputeStatus == DisputeStatus.REJECTED, "Dispute is not resolved.");
+        require(dispute.status == DisputeStatus.APPROVED || dispute.status == DisputeStatus.REJECTED, "Dispute is not resolved.");
 
         // Count votes, store it in a list
         uint256[] memory winningVoters = new uint256[](disputeVoters[disputeId].length);
@@ -185,10 +186,11 @@ contract DisputeResolutionDAO {
 
         for (uint256 i = 0; i < disputeVoters[disputeId].length; i++) {
             uint256 userId = disputeVoters[disputeId][i];
-            if (hasVoted[disputeId][userId]) {
-                if ((winningVote == Vote.APPROVE && userContract.getUserVote(disputeId, userId) == Vote.APPROVE) ||
-                    (winningVote == Vote.REJECT && userContract.getUserVote(disputeId, userId) == Vote.REJECT)) {
-                    
+            Vote userVote = mapUserToVote[disputeId][userId];
+            if (userVote != Vote.NONE) {
+                if ((winningVote == Vote.APPROVE && userVote == Vote.APPROVE) ||
+                    (winningVote == Vote.REJECT && userVote == Vote.REJECT)) {
+       
                     // Add the user ID to the winningVoters array
                     winningVoters[counter] = userId;
                     counter++;
@@ -229,7 +231,10 @@ contract DisputeResolutionDAO {
 
 
     // This function should not exist in production, but is here for demo purposes
-    function manuallyTriggerEndVoting(uint256 disputeId) external {
+    function manuallyTriggerEndVoting(uint256 disputeId) external validDisputeId(disputeId) {
+        Dispute storage dispute = disputes[disputeId];
+        // Set the endTime to a past timestamp to circumvent the require statement in the thing
+        dispute.endTime = block.timestamp - 1;
         resolveDispute(disputeId);
     }
     // ============================================================== METHODS ============================================================= //
