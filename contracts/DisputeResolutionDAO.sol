@@ -136,10 +136,10 @@ contract DisputeResolutionDAO {
     * Vote on a dispute.
     *
     * Considerations:
-    * - You must be who you say you are (userId wise) (move this to jobListing)
-    * - You must be a reviewer (move this to jobListing)
+    * - You must be who you say you are (userId wise) 
+    * - You must be a reviewer 
     * - Reviewer can only vote once on a given dispute
-    * - You cannot vote for a dispute where the client and freelancer is also yourself (move this to jobListing)
+    * - You cannot vote for a dispute where the client and freelancer is also yourself
     */
     function vote(uint256 reviewerId, uint256 disputeId, Vote voteChoice) external validDisputeId(disputeId) userIdMatches(reviewerId) {
         Dispute storage dispute = disputes[disputeId];
@@ -147,8 +147,8 @@ contract DisputeResolutionDAO {
         require(disputes[disputeId].status == DisputeStatus.PENDING, "Dispute already resolved or does not exist.");
         require(userContract.isReviewer(reviewerId), "Only reviewers can review.");
         require(hasVoted[disputeId][reviewerId] == false, "Reviewer has already voted.");
-        require(jobListingContract.getFreelancer(dispute.jobId) != reviewerId, "You are the freelancer for this job, you can't vote on your own job.");
-        require(jobListingContract.getClient(dispute.jobId) != reviewerId, "You are the client for this job, you can't vote on your own job.");
+        require(UserContract.haveSameAddress(jobListingContract.getFreelancer(dispute.jobId), reviewerId), "You are the freelancer for this job, you can't vote on your own job.");
+        require(UserContract.haveSameAddress(jobListingContract.getClient(dispute.jobId), reviewerId), "You are the client for this job, you can't vote on your own job.");
 
         // If vote attempt is made after the endTime, resolve the dispute (passive closure)
         if (block.timestamp > disputes[disputeId].endTime) {
