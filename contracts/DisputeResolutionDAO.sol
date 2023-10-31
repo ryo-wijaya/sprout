@@ -52,6 +52,8 @@ contract DisputeResolutionDAO {
     mapping(uint256 => Dispute) public disputes; // disputeID to dispute
     mapping(uint256 => bool) public isDisputed; // JobID to boolean to check to whether a dispute has been made (O(1))
     mapping(uint256 => mapping(uint256 => bool)) public hasVoted; // Keeps track of who has voted for a given dispute, disputeId -> userId -> bool
+    mapping(uint256 => uint256[]) public disputeVoters; // keeps track of all voters IDs for a disputeId
+
 
     constructor(address userAddress, address jobListingAddress, address escrowAddress) public {
         userContract = User(userAddress);
@@ -122,13 +124,15 @@ contract DisputeResolutionDAO {
 
         if (dispute.approveVotes >= dispute.rejectVotes) {
             dispute.status = DisputeStatus.APPROVED;
+            winningVote = Vote.APPROVE;
             // TODO: Escrow refund client
         } else {
             dispute.status = DisputeStatus.REJECTED;
+            winningVote = Vote.REJECT;
             // TODO: Escrow pay freelancer
         }
 
-        // distributeTokensToVoters(jobId, dispute.status);
+        distributeTokensToVoters(disputeId, winningVote);
         emit DisputeClosed(disputeId, dispute.status);
     }
 
@@ -163,14 +167,65 @@ contract DisputeResolutionDAO {
         }
         
         hasVoted[disputeId][reviewerId] = true;
+        disputeVoters[disputeId].push(reviewerId);
         emit voted(disputeId, reviewerId, voteChoice);
     }
 
-    function distributeTokensToVoters(uint256 disputeId) internal {
+    function distributeTokensToVoters(uint256 disputeId, Vote winningVote) internal {
         // Todo: Escrow distributes tokens to voters for 10 lucky reviewers of the winning majority.
         // If there are more than 10 reviewers of the winning majority, we will randomly pick 10 of them. (1 token each)
         // If there are less than 10 reviewers of the winning majority, we will distribute 1 token each to them. The rest will be refunded to the client.
+        Dispute storage dispute = disputes[disputeId];
+        require(disputeStatus == DisputeStatus.APPROVED || disputeStatus == DisputeStatus.REJECTED, "Dispute is not resolved.");
+
+        // Count votes, store it in a list
+        uint256[] memory winningVoters = new uint256[](disputeVoters[disputeId].length);
+        uint256 counter = 0;
+
+        for (uint256 i = 0; i < disputeVoters[disputeId].length; i++) {
+            uint256 userId = disputeVoters[disputeId][i];
+            if (hasVoted[disputeId][userId]) {
+                if ((winningVote == Vote.APPROVE && userContract.getUserVote(disputeId, userId) == Vote.APPROVE) ||
+                    (winningVote == Vote.REJECT && userContract.getUserVote(disputeId, userId) == Vote.REJECT)) {
+                    
+                    // Add the user ID to the winningVoters array
+                    winningVoters[counter] = userId;
+                    counter++;
+                }
+            }
+        }
+
+        // Randomly distribute tokens to up to 10 voters IF there are more than 10, else just distribute to the winning voters
+        uint256 rewardsCount = counter > 10 ? 10 : counter;
+        if (rewardsCount <= 10) {
+            // Less than 10 winning voters
+            for (uint256 i = 0; i < rewardsCount; i++) {
+                uint256 selectedVoterId = winningVoters[i];
+                // TODO: Escrow: Transfer 1 token to the dude
+            }
+
+            uint256 refundAmount = 10 - rewardsCount;
+            // TODO: Escrow: Refund remaining tokens to client
+
+        } else {
+            // If more than 10 voters, randomly pick 10 lucky winners lmao
+            bool[] memory rewarded = new bool[](counter); 
+
+            for (uint256 i = 0; i < 10; i++) {
+                uint256 randomIndex = uint256(keccak256(abi.encodePacked(block.timestamp, i))) % counter;
+
+                // Don't reward the same voter twice
+                while (rewarded[randomIndex]) {
+                    randomIndex = (randomIndex + 1) % counter;
+                }
+                
+                rewarded[randomIndex] = true;
+                uint256 selectedVoterId = winningVoters[randomIndex];
+                // TODO: Escrow: Transfer 1 token to the chosen one
+            }
+        }
     }
+
 
     // This function should not exist in production, but is here for demo purposes
     function manuallyTriggerEndVoting(uint256 disputeId) external {
