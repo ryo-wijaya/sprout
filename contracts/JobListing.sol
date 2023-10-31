@@ -10,7 +10,8 @@ contract JobListing {
         CLOSED,
         OPEN,
         ONGOING,
-        COMPLETED
+        COMPLETED,
+        PERMANENTLY_CLOSED
     }
 
     struct Job {
@@ -39,6 +40,8 @@ contract JobListing {
     mapping(uint256 => mapping(uint256 => Application)) private jobApplications;
     // This is to keep track of the number of applications for a job
     mapping(uint256 => uint256) private jobApplicationCounts;
+    // keep track of if a freelancer has already applied for a job
+    mapping(uint256 => mapping(uint256 => bool)) private hasApplied;
 
     constructor(address userAddress, address nativeTokenAddress) public {
         userContract = User(userAddress);
@@ -59,7 +62,7 @@ contract JobListing {
     event JobAcceptedAsComplete(uint256 jobId, uint256 clientId);
 
     modifier userIdMatches(uint256 userId) {
-        require(userContract.getAddressFromUserId(userId) == msg.sender, "This userId does not correspond to yourself.");
+        require(userContract.getAddressFromUserId(userId) == msg.sender, "This userId does not correspond to yourself");
         _;
     }
 
@@ -84,13 +87,11 @@ contract JobListing {
     * - You must be who you say you are (userId wise)
     * - The userId must be valid
     * - Only clients can create jobs
-    * - You need to have enough tokens to pay the reward
     * - The endTime is at least 3 days in the future
     */
     function createJob(uint256 clientId, string memory title, string memory description, uint256 endTime, uint256 reward) public userIdMatches(clientId) {
-        require(userContract.isClient(clientId), "Only clients can create jobs.");
-        require(nativeTokenContract.checkCredit(msg.sender) >= reward, "Client does not have enough tokens for reward.");
-        require(isValidEndTime(endTime), "The end time must be at least 3 days from now.");
+        require(userContract.isClient(clientId), "Only clients can create jobs");
+        require(isValidEndTime(endTime), "The end time must be at least 3 days from now");
         jobCount++;
         Job memory newJob = Job({
             clientId: clientId,
@@ -112,7 +113,7 @@ contract JobListing {
     * - You must be who you say you are (userId wise)
     * - The userId must be valid
     * - The jobId must be valid
-    * - Only the client who made the job post can edit it
+    * - Only the client who made the job post can edit it // recheck
     * - Only a job that has no applications can be edited
     * - Do a check for the job to be not ongoing (The above condition makes this redundant but this is just for safety)
     * - The endTime is in the future
@@ -120,7 +121,7 @@ contract JobListing {
     function updateJob(uint256 clientId, uint256 jobId, string memory title, string memory description, uint256 endTime, uint256 reward) public userIdMatches(clientId) validJobId(jobId) {
         Job storage job = jobs[jobId];
 
-        require(job.clientId == clientId, "Only the client who made the job post can edit it.");
+        require(job.clientId == clientId, "Only the client who made the job post can edit it."); // this is a recheck for userIdMatches
         require(job.status != JobStatus.ONGOING && job.status != JobStatus.COMPLETED, "Job is ONGOING or COMPLETED and cannot be edited.");
         require(isValidTime(endTime), "The end time must be in the future.");
 
@@ -154,11 +155,11 @@ contract JobListing {
     * - The jobId must be valid
     * - Once a job is closed, applications are paused
     * - A job that is ongoing cannot be closed
-    * - Only the client who posted the job can close it
+    * - Only the client who posted the job can close it (recheck)
     */
     function closeJob(uint256 clientId, uint256 jobId) public validJobId(jobId) userIdMatches(clientId) {
-        require(jobs[jobId].clientId == clientId, "Only the client who posted the job can close it.");
-        require(jobs[jobId].status == JobStatus.OPEN, "This job is currently ONGOING and cannot be closed.");
+        require(jobs[jobId].clientId == clientId, "Only the client who posted the job can close it."); // this is a recheck for userIdMatches
+        require(jobs[jobId].status == JobStatus.OPEN, "This job is either OPEN or currently ongoing and cannot be closed.");
 
         jobs[jobId].status = JobStatus.CLOSED;
         
@@ -180,7 +181,7 @@ contract JobListing {
     function reopenJob(uint256 clientId, uint256 jobId) public validJobId(jobId) userIdMatches(clientId) {
         Job storage job = jobs[jobId];
 
-        require(jobs[jobId].clientId == clientId, "Only the client who posted the job can re-open it.");
+        require(jobs[jobId].clientId == clientId, "Only the client who posted the job can re-open it."); // this is a recheck for userIdMatches
         require(jobs[jobId].status == JobStatus.CLOSED, "This job is not currently CLOSED.");
         require(isValidTime(job.endTime), "The end time must be in the future.");
 
@@ -206,6 +207,7 @@ contract JobListing {
         require(jobs[jobId].status == JobStatus.OPEN, "Job is not open for applications");
         require(userContract.isFreelancer(freelancerId), "Only freelancers can take jobs.");
         require(!userContract.haveSameAddress(freelancerId, jobs[jobId].clientId), "Freelancer and client cannot have the same address");
+        require(!hasApplied[jobId][freelancerId], "You have already applied for this job.");
 
         Application memory newApplication = Application({
             freelancerId: freelancerId, 
@@ -216,6 +218,7 @@ contract JobListing {
         jobApplicationCounts[jobId]++;
         uint256 applicationIdForJob = jobApplicationCounts[jobId];
         jobApplications[jobId][applicationIdForJob] = newApplication;
+        hasApplied[jobId][freelancerId] = true;
 
         emit ApplicationCreated(jobId, jobApplicationCounts[jobId]);
     }
@@ -232,15 +235,17 @@ contract JobListing {
     * - The application must not be tied to a freelancer with the same address (re-check)
     * - Only the client who posted the job can accept the application
     * - Once the application is accepted, the reward will be transferred to the escrow contract
+    * - Client must have enough tokens to pay the reward + 10 tokens (in the event of a dispute)
     */
     function acceptApplication(uint256 clientId, uint256 jobId, uint256 applicationId) public userIdMatches(clientId) validJobId(jobId) validApplicationId(jobId, applicationId) {
         Job storage job = jobs[jobId];
         Application storage application = jobApplications[jobId][applicationId];
 
         require(job.status == JobStatus.OPEN, "The job is not open.");
-        require(job.clientId == clientId, "You are not the client who posted this job.");
+        require(job.clientId == clientId, "You are not the client who posted this job."); // this is a recheck for userIdMatches
         require(!userContract.haveSameAddress(application.freelancerId, job.clientId), "You are both the freelancer and the client, you cannot accept your own job application");
-        
+        require(nativeTokenContract.checkCredit(msg.sender) >= job.reward + 10, "You do not have enough tokens to pay the reward + 10 tokens (in the event of a dispute)");
+
         application.isAccepted = true;
         job.status = JobStatus.ONGOING;
         job.acceptedFreelancerId = application.freelancerId;
@@ -262,7 +267,7 @@ contract JobListing {
     */
     function freelancerCompletesJob(uint256 freelancerId, uint256 jobId) public userIdMatches(freelancerId) validJobId(jobId) {
         Job storage job = jobs[jobId];
-        require(job.acceptedFreelancerId == freelancerId, "You are not the accepted freelancer for this job.");
+        require(job.acceptedFreelancerId == freelancerId, "You are not the accepted freelancer for this job."); // this is a recheck for userIdMatches
         require(job.status == JobStatus.ONGOING, "The job must be of status ONGOING");
         job.status = JobStatus.COMPLETED;
 
@@ -281,19 +286,12 @@ contract JobListing {
     function clientAcceptsJobCompletion(uint256 clientId, uint256 jobId) public userIdMatches(clientId) validJobId(jobId) {
         Job storage job = jobs[jobId];
 
-        require(job.clientId == clientId, "You are not the client who posted this job.");
+        require(job.clientId == clientId, "You are not the client who posted this job."); // this is a recheck for userIdMatches
         require(job.status == JobStatus.COMPLETED, "This job has not been marked as completed by the freelancer.");
 
         // TODO: Instruct escrow contract to release payment
 
-        // Clear all associated applications with this job and close it
-        for (uint256 i = 1; i <= jobApplicationCounts[jobId]; i++) {
-            delete jobApplications[jobId][i];
-        }
-
-        jobApplicationCounts[jobId] = 0;
-        job.acceptedFreelancerId = 0;
-        job.status = JobStatus.CLOSED;
+        job.status = JobStatus.PERMANENTLY_CLOSED;
 
         emit JobAcceptedAsComplete(jobId, clientId);
     }
@@ -304,9 +302,9 @@ contract JobListing {
     * Considerations:
     * - The jobId must be valid
     */
-    function getJobDetails(uint256 jobId) public view validJobId(jobId) returns(uint256, uint256, string memory, string memory, uint256, JobStatus) {
+    function getJobDetails(uint256 jobId) public view validJobId(jobId) returns(uint256, uint256, string memory, string memory, uint256, uint256, JobStatus) {
         Job memory job = jobs[jobId];
-        return (job.clientId, job.acceptedFreelancerId, job.title, job.description, job.reward, job.status);
+        return (job.clientId, job.acceptedFreelancerId, job.title, job.description, job.endTime, job.reward, job.status);
     }
 
     /**
