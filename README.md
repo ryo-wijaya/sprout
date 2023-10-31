@@ -1,3 +1,7 @@
+### Setup
+
+- This truffle project is configured to run on port localhost:7545 and has been tested with Ganache 2.7.1.0
+
 ### Truffle commands
 
 1. `truffle unbox` / `truffle init` - Initialize truffle workspace

@@ -90,7 +90,7 @@ contract DisputeResolutionDAO {
      * - Only the client associated with the job can initiate a dispute
      * - The job must not have been disputed before
      */
-    function startDispute(uint256, clientId, uint256 jobId) external userIdMatches(clientId) {
+    function startDispute(uint256 clientId, uint256 jobId) external userIdMatches(clientId) {
         require(jobListingContract.isValidJob(jobId), "Invalid jobId");
         require(!isDisputed[jobId], "Job has already been disputed");
         require(jobListingContract.getjobStatus(jobId) == JobListingContract.JobStatus.COMPLETED, "Job is not in the completed status");
@@ -123,11 +123,9 @@ contract DisputeResolutionDAO {
         if (dispute.approveVotes >= dispute.rejectVotes) {
             dispute.status = DisputeStatus.APPROVED;
             // TODO: Escrow refund client
-            // pay voters
         } else {
             dispute.status = DisputeStatus.REJECTED;
             // TODO: Escrow pay freelancer
-            // pay voters
         }
 
         // distributeTokensToVoters(jobId, dispute.status);
@@ -169,9 +167,14 @@ contract DisputeResolutionDAO {
     }
 
     function distributeTokensToVoters(uint256 disputeId) internal {
-        // Todo: escrow distributes tokens to voters for 10 lucky reviewers of the winning majority.
+        // Todo: Escrow distributes tokens to voters for 10 lucky reviewers of the winning majority.
         // If there are more than 10 reviewers of the winning majority, we will randomly pick 10 of them. (1 token each)
         // If there are less than 10 reviewers of the winning majority, we will distribute 1 token each to them. The rest will be refunded to the client.
+    }
+
+    // This function should not exist in production, but is here for demo purposes
+    function manuallyTriggerEndVoting(uint256 disputeId) external {
+        resolveDispute(disputeId);
     }
     // ============================================================== METHODS ============================================================= //
 }
