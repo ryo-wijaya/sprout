@@ -108,7 +108,7 @@ contract Escrow {
 
         require(payment.status == EscrowStatus.AWAITING_PAYMENT, "Invalid payment status");
         require(msg.sender == userContract.getAddressFromUserId(payment.clientId), "Invalid client sending");
-        require(jobContract.isJobCompleted(payment.jobId), "Job has not been completed yet");
+        require(jobContract.isJobClosed(payment.jobId), "Job has not been completed yet");
 
         //Client confirms delivery
         payment.status = EscrowStatus.COMPLETE;
@@ -131,7 +131,7 @@ contract Escrow {
     function refundPayment(uint256 _paymentId) public validPaymentId(_paymentId) {
         Payment storage payment = payments[_paymentId];
         require(payment.status == EscrowStatus.AWAITING_PAYMENT, "Invalid payment status");
-        require(jobContract.isJobCompleted(payment.jobId) != true, "Job cannot be completed");
+        require(jobContract.isJobClosed(payment.jobId) != true, "Job cannot be completed");
         //With my current code only the client can refund payment
         //cause only client approved to take money out of the escrow contract
         nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.clientId), payment.amount);
