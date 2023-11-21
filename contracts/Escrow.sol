@@ -15,19 +15,18 @@ contract Escrow {
         uint256 freelancerId;
         uint256 jobId;
         uint256 amount;
+        uint256 balance;
         EscrowStatus status;
     }
 
     uint256 public numPayments = 0;
     NativeToken nativeTokenContract;
     User public userContract; // Reference to the User Contract
-    JobListing public jobContract; // Reference to the Job Contract
     mapping(uint256 => Payment) public payments;
 
-    constructor(address _userContract, address _nativeTokenContract, address _jobContract) public {
+    constructor(address _userContract, address _nativeTokenContract) public {
         userContract = User(_userContract); // The userclass of this address, only clients should be able to pay
         nativeTokenContract = NativeToken(_nativeTokenContract);
-        jobContract = JobListing(_jobContract);
     }
 
     // ====================================================== EVENTS & MODIFIERS ========================================================== //
@@ -44,7 +43,7 @@ contract Escrow {
 
     // Check that the payment ID exist
     modifier validPaymentId(uint256 _paymentId) {
-        require(_paymentId < numPayments, "Invalid payment ID");
+        require(_paymentId <= numPayments, "Invalid payment ID");
         _;
     }
 
@@ -69,53 +68,61 @@ contract Escrow {
         * - The freelancer and client must be of different addresses
         * - The freelancerId/clientId must be a freelancer/client
         * - The client must have enough NativeTokens
-        * - The job must be in Ongoing status
+        * - The job must be in Ongoing status (already checked in the caller - JobListing.sol constract)
     */
-    function initiatePayment(uint256 _clientId, uint256 _freelancerId, uint256 _jobId, uint256 _amount) public payable differentAddresses(_freelancerId, _clientId) isClient(_clientId) isFreelancer(_freelancerId) {
+
+    function initiatePayment(uint256 _clientId, uint256 _freelancerId, uint256 _jobId, uint256 _amount) public payable differentAddresses(_freelancerId, _clientId) isClient(_clientId) isFreelancer(_freelancerId) returns (uint256) {
+        address clientAddress = userContract.getAddressFromUserId(_clientId);
+        
         //Check that client does indeed have amount he wants to give
-        require(nativeTokenContract.checkCredit(msg.sender) >= _amount, "Client does not have enough tokens for payment");
-        require(jobContract.isJobOngoing(_jobId), "Job is currently not in Ongoing status.");
+        require(nativeTokenContract.checkCredit(clientAddress) >= _amount, "You do not have enough tokens to pay the reward + 10 tokens (in the event of a dispute)");
+
+        numPayments++;
 
         Payment storage payment = payments[numPayments];
         payment.clientId = _clientId;
         payment.freelancerId = _freelancerId;
         payment.jobId = _jobId;
         payment.amount = _amount;
+        payment.balance = _amount;
         payment.status = EscrowStatus.AWAITING_PAYMENT;
 
-        //Client sends payment to Escrow contract
+        //Client sends payment to Escrow
         nativeTokenContract.transferCredit(address(this), _amount);
 
-        nativeTokenContract.approve(msg.sender, _amount);
+        nativeTokenContract.approve(address(this), _amount);
 
         emit PaymentInitiated(numPayments, _jobId, _freelancerId, _clientId, _amount);
 
-        numPayments++;
+        return numPayments;
     }
 
 
     /**
-        * Function for the NativeTokens to be transferred to the Freelancer on completion of Job
-        * NativeToken is transferred to the Freelancer
+        * Function for the NativeTokens to be transferred to the Freelancer on completion of Job, with no disputes
+        * NativeToken is transferred to the Freelancer, staked 10 tokens in the event of a dispute is refunded to the client
         *
         * Considerations:
         * - The payment status must be AWAITING_PAYMENT
-        * - The msg.sender must be the client of the particular payment
-        * - The job must be COMPLETED
+        * - The job must be COMPLETED (already checked by the jobListing contract)
     */
     function confirmDelivery(uint256 _paymentId) public payable validPaymentId(_paymentId) {
         Payment storage payment = payments[_paymentId];
 
         require(payment.status == EscrowStatus.AWAITING_PAYMENT, "Invalid payment status");
-        require(msg.sender == userContract.getAddressFromUserId(payment.clientId), "Invalid client sending");
-        require(jobContract.isJobClosed(payment.jobId), "Job has not been completed yet");
 
-        //Client confirms delivery
+        // Pay the freelancer
+        nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.freelancerId), payment.amount - 10);
+
+        // Refund staked tokens to the client
+        nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.clientId), 10);
+
+        // Empty balance
+        payment.balance = 0;
+
+        // Client confirms delivery
         payment.status = EscrowStatus.COMPLETE;
-        nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.freelancerId), payment.amount);
 
-        //Client cannot take more money out of contract
-        nativeTokenContract.approve(msg.sender, 0);
         emit PaymentComplete(_paymentId);
     }
 
@@ -126,12 +133,12 @@ contract Escrow {
         * Considerations:
         * - The payment status must be AWAITING_PAYMENT
         * - The msg.sender must be the client of the particular payment
-        * - The job cannot be COMPLETED
+        * - The job cannot be COMPLETED (already checked by the jobListing contract)
     */
     function refundPayment(uint256 _paymentId) public validPaymentId(_paymentId) {
         Payment storage payment = payments[_paymentId];
         require(payment.status == EscrowStatus.AWAITING_PAYMENT, "Invalid payment status");
-        require(jobContract.isJobClosed(payment.jobId) != true, "Job cannot be completed");
+        // require(jobContract.isJobClosed(payment.jobId) != true, "Job cannot be completed");
         //With my current code only the client can refund payment
         //cause only client approved to take money out of the escrow contract
         nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.clientId), payment.amount);
@@ -158,8 +165,8 @@ contract Escrow {
         return payments[_paymentId].jobId;
     }
 
-    function getAmount(uint256 _paymentId) public view returns (uint256) {
-        return payments[_paymentId].amount;
+    function getBalance(uint256 _paymentId) public view returns (uint256) {
+        return payments[_paymentId].balance;
     }
 
     function getCurrentStatus(uint256 _paymentId) public view returns (EscrowStatus) {

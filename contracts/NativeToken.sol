@@ -11,6 +11,7 @@ contract NativeToken {
         erc20Contract = e;
         owner = msg.sender;
     }
+
     /**
     * @dev Function to give NT to the recipient for a given wei amount
     * @param recipient address of the recipient that wants to buy the NT

@@ -114,19 +114,21 @@ contract ERC20 {
   }
 
    /**
+    * Function uses msg.sender instead of tx.origin, this aligns with the ERC20 standard, and is safer and prevents certain security vulnerabilities.
     * @dev Transfer tokens from one address to another
     * @param _from address The address which you want to send tokens from
     * @param _to address The address which you want to transfer to
     * @param _value uint256 the amount of tokens to be transferred
     */
+
   function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
     require(_to != address(0));
     require(_value <= balances[_from], "From doesn't have enough balance");
-    require(_value <= allowed[_from][tx.origin], "Not allowed to spend this much");
+    require(_value <= allowed[_from][msg.sender], "Not allowed to spend this much");
 
     balances[_from] = balances[_from].sub(_value);
     balances[_to] = balances[_to].add(_value);
-    allowed[_from][tx.origin] = allowed[_from][tx.origin].sub(_value);
+    allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
     emit Transfer(_from, _to, _value);
     return true;
   }
@@ -142,7 +144,7 @@ contract ERC20 {
     * @param _value The amount of tokens to be spent.
     */
   function approve(address _spender, uint256 _value) public returns (bool) {
-   allowed[msg.sender][_spender] = _value;
+   allowed[_spender][msg.sender] = _value;
    emit Approval(msg.sender, _spender, _value);
    return true;
   }

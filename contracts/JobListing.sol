@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 import "./User.sol";
-import "./NativeToken.sol";
+import "./Escrow.sol";
 
 contract JobListing {
     
@@ -17,6 +17,7 @@ contract JobListing {
     struct Job {
         uint256 clientId;
         uint256 acceptedFreelancerId; // This should be cleared after a job is done
+        uint256 paymentId; // This is the paymentId from the escrow contract
         string title;
         string description;        
         uint256 endTime;
@@ -31,7 +32,8 @@ contract JobListing {
     }
 
     User userContract;
-    NativeToken nativeTokenContract;
+    Escrow escrowContract;
+
     uint256 private jobCount = 0;
     mapping(uint256 => Job) jobs; // Get job details here by jobId
     // This is a mapping of job -> applications -> application
@@ -43,9 +45,9 @@ contract JobListing {
     // keep track of if a freelancer has already applied for a job
     mapping(uint256 => mapping(uint256 => bool)) private hasApplied;
 
-    constructor(address userAddress, address nativeTokenAddress) public {
+    constructor(address userAddress, address escrowAddress) public {
         userContract = User(userAddress);
-        nativeTokenContract = NativeToken(nativeTokenAddress);
+        escrowContract = Escrow(escrowAddress);
     }
     // ===================================================== SCHEMA & STATE VARIABLES ===================================================== //
 
@@ -96,6 +98,7 @@ contract JobListing {
         Job memory newJob = Job({
             clientId: clientId,
             acceptedFreelancerId: 0, // This basically means null, userIds start from 1
+            paymentId: 0, // This basically means null, paymentIds start from 1
             title: title,
             description: description,
             endTime: endTime,
@@ -235,7 +238,7 @@ contract JobListing {
     * - The application must not be tied to a freelancer with the same address (re-check)
     * - Only the client who posted the job can accept the application
     * - Once the application is accepted, the reward will be transferred to the escrow contract
-    * - Client must have enough tokens to pay the reward + 10 tokens (in the event of a dispute)
+    * - Client must have enough tokens to pay the reward + 10 tokens (in the event of a dispute) (THIS WILL BE CHECKED IN THE ESCROW INSTEAD)
     */
     function acceptApplication(uint256 clientId, uint256 jobId, uint256 applicationId) public userIdMatches(clientId) validJobId(jobId) validApplicationId(jobId, applicationId) {
         Job storage job = jobs[jobId];
@@ -244,13 +247,14 @@ contract JobListing {
         require(job.status == JobStatus.OPEN, "The job is not open.");
         require(job.clientId == clientId, "You are not the client who posted this job."); // this is a recheck for userIdMatches
         require(!userContract.haveSameAddress(application.freelancerId, job.clientId), "You are both the freelancer and the client, you cannot accept your own job application");
-        require(nativeTokenContract.checkCredit(msg.sender) >= job.reward + 10, "You do not have enough tokens to pay the reward + 10 tokens (in the event of a dispute)");
+        // require(nativeTokenContract.checkCredit(msg.sender) >= job.reward + 10, "You do not have enough tokens to pay the reward + 10 tokens (in the event of a dispute)");
+
+        uint256 paymentId = escrowContract.initiatePayment(job.clientId, application.freelancerId, jobId, job.reward + 10); // Addition 10 tokens are staked in the event of a dispute
 
         application.isAccepted = true;
         job.status = JobStatus.ONGOING;
         job.acceptedFreelancerId = application.freelancerId;
-
-        // TODO: Send reward to escrow contract here
+        job.paymentId = paymentId; // Associate the paymentId returned from the escrow to the job
 
         emit ApplicationAccepted(jobId, applicationId, application.freelancerId);
     }
@@ -283,13 +287,15 @@ contract JobListing {
     * - The job must be marked as completed
     * - Only the client who posted this job can accept the job completion
     */
+
     function clientAcceptsJobCompletion(uint256 clientId, uint256 jobId) public userIdMatches(clientId) validJobId(jobId) {
         Job storage job = jobs[jobId];
 
         require(job.clientId == clientId, "You are not the client who posted this job."); // this is a recheck for userIdMatches
         require(job.status == JobStatus.COMPLETED, "This job has not been marked as completed by the freelancer.");
 
-        // TODO: Instruct escrow contract to release payment
+        // Pay the freelancer the reward and refund the staked 10 tokens to the client
+        escrowContract.confirmDelivery(job.paymentId);
 
         job.status = JobStatus.PERMANENTLY_CLOSED;
 
