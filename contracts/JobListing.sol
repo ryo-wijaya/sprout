@@ -294,8 +294,8 @@ contract JobListing {
         require(job.clientId == clientId, "You are not the client who posted this job."); // this is a recheck for userIdMatches
         require(job.status == JobStatus.COMPLETED, "This job has not been marked as completed by the freelancer.");
 
-        // Pay the freelancer the reward and refund the staked 10 tokens to the client
-        escrowContract.confirmDelivery(job.paymentId);
+        // Pay the freelancer the reward, and refund the staked 10 tokens to the client (indicated by 2nd argument as true)
+        escrowContract.confirmDelivery(job.paymentId, true);
 
         job.status = JobStatus.PERMANENTLY_CLOSED;
 
@@ -391,6 +391,10 @@ contract JobListing {
 
     function getJobClient(uint256 jobId) public view validJobId(jobId) returns (uint256) {
         return jobs[jobId].clientId;
+    }
+
+    function getJobPaymentId(uint256 jobId) public view validJobId(jobId) returns (uint256) {
+        return jobs[jobId].paymentId;
     }
 
     function getJobFreelancer(uint256 jobId) public view validJobId(jobId) returns (uint256) {

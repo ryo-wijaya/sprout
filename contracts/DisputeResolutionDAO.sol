@@ -37,9 +37,10 @@ contract DisputeResolutionDAO {
     enum DisputeStatus { PENDING, APPROVED, REJECTED }
 
     struct Dispute {
-        uint256 jobId;           
-        uint256 endTime;         
-        DisputeStatus status;    
+        uint256 jobId;
+        uint256 paymentId; // paymentId in the Escrow contract
+        uint256 endTime;
+        DisputeStatus status;
         uint256 approveVotes;     
         uint256 rejectVotes;
     }
@@ -69,7 +70,7 @@ contract DisputeResolutionDAO {
     event voted(uint256 disputeId, uint256 userId, Vote voteChoice);
 
     modifier userIdMatches(uint256 userId) {
-        require(userContract.getAddressFromUserId(userId) == msg.sender, "This userId does not correspond to yourself.");
+        require(userContract.getAddressFromUserId(userId) == msg.sender, "This userId does not correspond to yourself");
         _;
     }
 
@@ -94,7 +95,7 @@ contract DisputeResolutionDAO {
      * - The job must not have been disputed before
      */
     function startDispute(uint256 clientId, uint256 jobId) external userIdMatches(clientId) {
-        require(jobListingContract.isValidJob(jobId), "Invalid jobId");
+        require(jobListingContract.isValidJob(jobId), "Invalid Job ID");
         require(!isDisputed[jobId], "Job has already been disputed");
         require(jobListingContract.isJobCompleted(jobId), "Job is not in the completed status");
         require(jobListingContract.getJobClient(jobId) == clientId, "Only the client associated with the job can initiate a dispute");
@@ -102,6 +103,7 @@ contract DisputeResolutionDAO {
         disputeCount++;
         disputes[disputeCount] = Dispute({
             jobId: jobId,
+            paymentId: jobListingContract.getJobPaymentId(jobId),
             endTime: block.timestamp + 3 days,
             status: DisputeStatus.PENDING,
             approveVotes: 0,
@@ -130,11 +132,13 @@ contract DisputeResolutionDAO {
         if (dispute.approveVotes >= dispute.rejectVotes) {
             dispute.status = DisputeStatus.APPROVED;
             winningVote = Vote.APPROVE;
-            // TODO: Escrow refund client
+            // Escrow refunds the client the job rewards, but keeps the client's 10 staked tokens for distribution to voters later 
+            escrowContract.refundPayment(dispute.paymentId);
         } else {
             dispute.status = DisputeStatus.REJECTED;
             winningVote = Vote.REJECT;
-            // TODO: Escrow pay freelancer
+            // Escrow pays freelancer what they're owed, but keeps the client's 10 staked tokens for distribution to voters later 
+            escrowContract.confirmDelivery(dispute.paymentId, false);
         }
 
         distributeTokensToVoters(disputeId, winningVote);
@@ -207,11 +211,13 @@ contract DisputeResolutionDAO {
             // Less than 10 winning voters
             for (uint256 i = 0; i < rewardsCount; i++) {
                 uint256 selectedVoterId = winningVoters[i];
-                // TODO: Escrow: Transfer 1 token to the dude
+                // Pay the voter 1 token
+                escrowContract.rewardVoter(dispute.paymentId, userContract.getAddressFromUserId(selectedVoterId));
             }
 
-            uint256 refundAmount = 10 - rewardsCount;
-            // TODO: Escrow: Refund remaining tokens to client
+            // Refund remaining tokens to the client, in the event that there are not enough winning voters
+            escrowContract.refundTokenBalance(dispute.paymentId);
+            
 
         } else {
             // If more than 10 voters, randomly pick 10 lucky winners lmao
@@ -227,7 +233,8 @@ contract DisputeResolutionDAO {
                 
                 rewarded[randomIndex] = true;
                 uint256 selectedVoterId = winningVoters[randomIndex];
-                // TODO: Escrow: Transfer 1 token to the chosen one
+                // Pay the voter 1 token
+                escrowContract.rewardVoter(dispute.paymentId, userContract.getAddressFromUserId(selectedVoterId));
             }
         }
     }
