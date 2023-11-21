@@ -163,7 +163,7 @@ contract Escrow {
         Payment storage payment = payments[_paymentId];
         require(payment.status == EscrowStatus.PARTIALLY_REFUNDED, "Invalid payment status");
 
-        if (payment.balance > 0) {
+        if (payment.balance >= EACH_VOTER_REWARD) {
             nativeTokenContract.transferFrom(address(this), voterAddress, EACH_VOTER_REWARD);
             payment.balance--;
             emit VoterReward(_paymentId, voterAddress);
