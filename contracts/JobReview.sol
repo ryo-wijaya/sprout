@@ -43,7 +43,12 @@ contract JobReview {
     }
 
     modifier jobCompleted(uint256 _jobId) {
-        require(jobContract.isJobCompleted(_jobId), "Job is not completed yet");
+        require(jobContract.isJobClosed(_jobId), "Job is not completed yet");
+        _;
+    }
+
+    modifier isValidReview(uint256 _reviewId) {
+        require(_reviewId >= 0 && _reviewId <= reviewCount, "Review ID is not valid");
         _;
     }
 
@@ -132,4 +137,9 @@ contract JobReview {
         return userToAvgRatings[_clientId];
     }
     
+    // Get review Details
+    function getReviewDetails(uint256 _reviewId) public view isValidReview(_reviewId) returns(uint256, uint256, uint256, string memory) {
+        Review memory review = reviews[_reviewId];
+        return (review.clientId, review.freelancerId, review.rating, review.comments);
+    }
 }
