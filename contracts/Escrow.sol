@@ -25,19 +25,23 @@ contract Escrow {
         EscrowStatus status;
     }
 
-    // Constant for the number of tokens client must stake in the potential event of a dispute (business rule)
-    uint256 constant STAKED_TOKENS = 10;
-    // Constant for the number of tokens each voter gets as a reward for voting (business rule)
-    uint256 constant EACH_VOTER_REWARD = 1;
+    // The number of tokens client must stake in the potential event of a dispute (business rule)
+    uint256 public stakedTokens;
+    // The number of tokens each voter gets as a reward for voting (business rule)
+    uint256 public eachVoterReward;
 
     uint256 public numPayments = 0;
     NativeToken nativeTokenContract;
     User public userContract; // Reference to the User Contract
     mapping(uint256 => Payment) public payments;
 
-    constructor(address _userContract, address _nativeTokenContract) public {
+    constructor(address _userContract, address _nativeTokenContract, uint256 _stakedTokens, uint256 _eachVoterReward) public {
         userContract = User(_userContract); // The userclass of this address, only clients should be able to pay
         nativeTokenContract = NativeToken(_nativeTokenContract);
+
+        // Set staked tokens and voter reward values as specified by the deployer
+        stakedTokens = _stakedTokens;
+        eachVoterReward = _eachVoterReward;
     }
 
     // ====================================================== EVENTS & MODIFIERS ========================================================== //
@@ -88,7 +92,7 @@ contract Escrow {
         address clientAddress = userContract.getAddressFromUserId(_clientId);
         
         //Check that client does indeed have amount he wants to give
-        require(nativeTokenContract.checkCredit(clientAddress) >= _amount, "You do not have enough tokens to pay the reward + 10 tokens (in the event of a dispute)");
+        require(nativeTokenContract.checkCredit(clientAddress) >= _amount, "You do not have enough tokens to pay the reward + staked tokens (in the event of a dispute)");
 
         numPayments++;
 
@@ -124,17 +128,17 @@ contract Escrow {
         require(payment.status == EscrowStatus.AWAITING_PAYMENT, "Invalid payment status");
 
         // Pay the freelancer
-        nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.freelancerId), payment.amount - STAKED_TOKENS);
+        nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.freelancerId), payment.amount - stakedTokens);
 
         if (withStakedTokens) {
             // Refund staked tokens to the client, empty balance and mark as delivered
-            nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.clientId), STAKED_TOKENS);
+            nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.clientId), stakedTokens);
             payment.balance = 0;
             payment.status = EscrowStatus.COMPLETE;
             emit PaymentComplete(_paymentId);
         } else {
             // Do not refund staked tokens to the client, mark as partially refunded, awaiting distribution of staked tokens to voters
-            payment.balance = STAKED_TOKENS;
+            payment.balance = stakedTokens;
             payment.status = EscrowStatus.PARTIALLY_REFUNDED;
             emit PaymentPartiallyRefunded(_paymentId);
         }
@@ -153,23 +157,51 @@ contract Escrow {
         Payment storage payment = payments[_paymentId];
         require(payment.status == EscrowStatus.AWAITING_PAYMENT, "Invalid payment status");
 
-        nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.clientId), payment.amount - STAKED_TOKENS);
-        payment.balance = STAKED_TOKENS;
+        nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.clientId), payment.amount - stakedTokens);
+        payment.balance = stakedTokens;
         payment.status = EscrowStatus.PARTIALLY_REFUNDED;
         emit PaymentPartiallyRefunded(_paymentId);
     }
 
+    /**
+    * @dev Rewards a voter who participated in a dispute resolution process.
+    *
+    * This function is called to distribute rewards to voters who voted in the winning majority
+    * in a dispute resolution process. Each voter receives a predefined number of tokens as a reward.
+    *
+    * Considerations:
+    * - The function can only be called for payments that are in the PARTIALLY_REFUNDED status.
+    * - The payment must have enough balance to cover the voter reward.
+    * - The balance of the payment is decremented by the reward amount for each voter.
+    *
+    * @param _paymentId The ID of the escrow payment associated with the job in dispute.
+    * @param voterAddress The address of the voter receiving the reward.
+    */
     function rewardVoter(uint256 _paymentId, address voterAddress) public validPaymentId(_paymentId) {
         Payment storage payment = payments[_paymentId];
         require(payment.status == EscrowStatus.PARTIALLY_REFUNDED, "Invalid payment status");
 
-        if (payment.balance >= EACH_VOTER_REWARD) {
-            nativeTokenContract.transferFrom(address(this), voterAddress, EACH_VOTER_REWARD);
+        if (payment.balance >= eachVoterReward) {
+            nativeTokenContract.transferFrom(address(this), voterAddress, eachVoterReward);
             payment.balance--;
             emit VoterReward(_paymentId, voterAddress);
         }
     }
 
+    /**
+    * @dev Refunds the remaining token balance to the client after dispute resolution.
+    *
+    * This function is used to refund the leftover tokens in the escrow (if any) to the client
+    * after the dispute resolution process. This typically happens when fewer than 10 reviewers have
+    * voted, leaving some of the staked tokens unallocated.
+    *
+    * Considerations:
+    * - The function can only be called for payments that are in the PARTIALLY_REFUNDED status.
+    * - The entire remaining balance of the payment is refunded to the client.
+    * - After the refund, the payment status is changed to REFUNDED.
+    *
+    * @param _paymentId The ID of the escrow payment for which the remaining balance is to be refunded.
+    */
     function refundTokenBalance(uint256 _paymentId) public validPaymentId(_paymentId) {
         Payment storage payment = payments[_paymentId];
         require(payment.status == EscrowStatus.PARTIALLY_REFUNDED, "Invalid payment status");

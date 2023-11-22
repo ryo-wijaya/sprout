@@ -34,6 +34,9 @@ contract JobListing {
     User userContract;
     Escrow escrowContract;
 
+    // The number of tokens client must stake in the potential event of a dispute (business rule)
+    uint256 public stakedTokens;
+
     uint256 private jobCount = 0;
     mapping(uint256 => Job) jobs; // Get job details here by jobId
     // This is a mapping of job -> applications -> application
@@ -45,9 +48,10 @@ contract JobListing {
     // keep track of if a freelancer has already applied for a job
     mapping(uint256 => mapping(uint256 => bool)) private hasApplied;
 
-    constructor(address userAddress, address escrowAddress) public {
+    constructor(address userAddress, address escrowAddress, uint256 _stakedTokens) public {
         userContract = User(userAddress);
         escrowContract = Escrow(escrowAddress);
+        stakedTokens = _stakedTokens;
     }
     // ===================================================== SCHEMA & STATE VARIABLES ===================================================== //
 
@@ -238,7 +242,7 @@ contract JobListing {
     * - The application must not be tied to a freelancer with the same address (re-check)
     * - Only the client who posted the job can accept the application
     * - Once the application is accepted, the reward will be transferred to the escrow contract
-    * - Client must have enough tokens to pay the reward + 10 tokens (in the event of a dispute) (THIS WILL BE CHECKED IN THE ESCROW INSTEAD)
+    * - Client must have enough tokens to pay the reward + x tokens (in the event of a dispute) (THIS WILL BE CHECKED IN THE ESCROW)
     */
     function acceptApplication(uint256 clientId, uint256 jobId, uint256 applicationId) public userIdMatches(clientId) validJobId(jobId) validApplicationId(jobId, applicationId) {
         Job storage job = jobs[jobId];
@@ -247,9 +251,8 @@ contract JobListing {
         require(job.status == JobStatus.OPEN, "The job is not open.");
         require(job.clientId == clientId, "You are not the client who posted this job."); // this is a recheck for userIdMatches
         require(!userContract.haveSameAddress(application.freelancerId, job.clientId), "You are both the freelancer and the client, you cannot accept your own job application");
-        // require(nativeTokenContract.checkCredit(msg.sender) >= job.reward + 10, "You do not have enough tokens to pay the reward + 10 tokens (in the event of a dispute)");
 
-        uint256 paymentId = escrowContract.initiatePayment(job.clientId, application.freelancerId, jobId, job.reward + 10); // Addition 10 tokens are staked in the event of a dispute
+        uint256 paymentId = escrowContract.initiatePayment(job.clientId, application.freelancerId, jobId, job.reward + stakedTokens);
 
         application.isAccepted = true;
         job.status = JobStatus.ONGOING;

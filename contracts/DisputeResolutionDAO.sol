@@ -7,10 +7,15 @@ contract DisputeResolutionDAO {
 
     /*
     * This contract will be referenced by the JobListing contract. This is to make it easier to do job related checks and handle escrow management at a single place
-
+    *
+    * Key variable definitions:
+    * - x (The amount of tokens staked by the client) will be specified by the deployer in the Escrow contract
+    * - y (The amount of tokens rewarded to each winning reviewer) will be specified by the deployer in the Escrow contract
+    * - maxNumberOfWinners (The maximum number of reviewers that can be rewarded) will be specified by the deployer in this contract 
+    *
     * Dispute resolution process:
     * - A dispute will always be started by the client.
-    * - The client will need to pay (not stake) 10 tokens to start a dispute.
+    * - The client will need to pay (not stake) x tokens to start a dispute.
     * - Reviewers will take a look at the job details, the work done, and make a vote for the winning party
     * - The voting will end the at designated end time, which is 3 days by default (This is an arbitrarily picked number).
     * - Passive closure: If a vote is attempted after the endTime, the dispute will be closed automatically and counting will commence.
@@ -19,17 +24,14 @@ contract DisputeResolutionDAO {
     * - If the dispute get more or equal number of APPROVE votes vs REJECT, the dispute will be APPROVED.
     * - If the dispute is APPROVED, the client will get back the tokens held in escrow and whatever work has already been done by the client
     * - If the dispute is REJECTED, the freelancer will get the tokens held in escrow
-    * - Either way, the staked tokens by the client will get distributed to the 10 lucky reviewers who voted for the winning party
+    * - Either way, the staked tokens by the client will get distributed to the specified maxNumberOfWinners lucky reviewers who voted for the winning party
     *
     * Assumptions:
     * - When a dispute is made, the client and freelancer has an avenue to provide evidence and explanations of why the work done is acceptable/unacceptable
     *       For example, there can be an off-chain application/interface for this, like how Uniswap's DAO operates (Snapshot)
     * - While we implemented passive closure, for demo purposes we will include a function that can terminate voting and start the counting before the endTime is reached
-    * - For demo purposes and mathematical simplicity, we will only reward up to 10 random reviewers with the 10 tokens.
-    *       If there are less than 10 reviewers, we will reward each reviewer 1 token each. The remaining tokens will be refunded to the client.
-    *
-    * Future considerations:
-    * - Should reviewers need to stake tokens to vote? 
+    * - For demo purposes and mathematical simplicity, we will only reward up to the specified maxNumberOfWinners with the x amount of tokens tokens.
+    *       If there are less than the specified maxNumberOfWinners reviewers, we will reward each reviewer y token each. The remaining tokens will be refunded to the client.
     */
 
     // ===================================================== SCHEMA & STATE VARIABLES ===================================================== //
@@ -49,6 +51,8 @@ contract DisputeResolutionDAO {
     JobListing jobListingContract;
     Escrow escrowContract;
 
+    uint256 public maxNumberOfWinners;
+
     uint256 private disputeCount = 0;
     mapping(uint256 => Dispute) public disputes; // disputeID to dispute
     mapping(uint256 => bool) public isDisputed; // JobID to boolean to check to whether a dispute has been made (O(1))
@@ -57,10 +61,11 @@ contract DisputeResolutionDAO {
 
 
 
-    constructor(address userAddress, address jobListingAddress, address escrowAddress) public {
+    constructor(address userAddress, address jobListingAddress, address escrowAddress, uint256 _maxNumberOfWinners) public {
         userContract = User(userAddress);
         escrowContract = Escrow(escrowAddress);
         jobListingContract = JobListing(jobListingAddress);
+        maxNumberOfWinners = _maxNumberOfWinners;
     }
     // ===================================================== SCHEMA & STATE VARIABLES ===================================================== //
     
@@ -132,12 +137,12 @@ contract DisputeResolutionDAO {
         if (dispute.approveVotes >= dispute.rejectVotes) {
             dispute.status = DisputeStatus.APPROVED;
             winningVote = Vote.APPROVE;
-            // Escrow refunds the client the job rewards, but keeps the client's 10 staked tokens for distribution to voters later 
+            // Escrow refunds the client the job rewards, but keeps the client's x staked tokens for distribution to voters later 
             escrowContract.refundPayment(dispute.paymentId);
         } else {
             dispute.status = DisputeStatus.REJECTED;
             winningVote = Vote.REJECT;
-            // Escrow pays freelancer what they're owed, but keeps the client's 10 staked tokens for distribution to voters later 
+            // Escrow pays freelancer what they're owed, but keeps the client's x staked tokens for distribution to voters later 
             escrowContract.confirmDelivery(dispute.paymentId, false);
         }
 
@@ -181,9 +186,9 @@ contract DisputeResolutionDAO {
     }
 
     function distributeTokensToVoters(uint256 disputeId, Vote winningVote) internal {
-        // Todo: Escrow distributes tokens to voters for 10 lucky reviewers of the winning majority.
-        // If there are more than 10 reviewers of the winning majority, we will randomly pick 10 of them. (1 token each)
-        // If there are less than 10 reviewers of the winning majority, we will distribute 1 token each to them. The rest will be refunded to the client.
+        // Todo: Escrow distributes tokens to voters for the specified maxNumberOfWinners of the winning majority.
+        // If there are more than the specified maxNumberOfWinners of the winning majority, we will randomly pick the specified maxNumberOfWinners of them. (y tokens each)
+        // If there are less than the specified maxNumberOfWinners of the winning majority, we will distribute y tokens each to them. The rest will be refunded to the client.
         Dispute storage dispute = disputes[disputeId];
         require(dispute.status == DisputeStatus.APPROVED || dispute.status == DisputeStatus.REJECTED, "Dispute is not resolved.");
 
@@ -205,13 +210,13 @@ contract DisputeResolutionDAO {
             }
         }
 
-        // Randomly distribute tokens to up to 10 voters IF there are more than 10, else just distribute to the winning voters
-        uint256 rewardsCount = counter > 10 ? 10 : counter;
-        if (rewardsCount <= 10) {
-            // Less than 10 winning voters
+        // Randomly distribute tokens to up to the specified maxNumberOfWinners IF there are more than the specified maxNumberOfWinners, else just distribute to the winning voters
+        uint256 rewardsCount = counter > maxNumberOfWinners ? maxNumberOfWinners : counter;
+        if (rewardsCount <= maxNumberOfWinners) {
+            // Less than maxNumberOfWinners winning voters
             for (uint256 i = 0; i < rewardsCount; i++) {
                 uint256 selectedVoterId = winningVoters[i];
-                // Pay the voter 1 token
+                // Pay the voter y tokens
                 escrowContract.rewardVoter(dispute.paymentId, userContract.getAddressFromUserId(selectedVoterId));
             }
 
@@ -220,10 +225,10 @@ contract DisputeResolutionDAO {
             
 
         } else {
-            // If more than 10 voters, randomly pick 10 lucky winners lmao
+            // If more than the specified maxNumberOfWinners, randomly pick the specified maxNumberOfWinners from the winning pool
             bool[] memory rewarded = new bool[](counter); 
 
-            for (uint256 i = 0; i < 10; i++) {
+            for (uint256 i = 0; i < maxNumberOfWinners; i++) {
                 uint256 randomIndex = uint256(keccak256(abi.encodePacked(block.timestamp, i))) % counter;
 
                 // Don't reward the same voter twice
@@ -233,7 +238,7 @@ contract DisputeResolutionDAO {
                 
                 rewarded[randomIndex] = true;
                 uint256 selectedVoterId = winningVoters[randomIndex];
-                // Pay the voter 1 token
+                // Pay the voter y tokens
                 escrowContract.rewardVoter(dispute.paymentId, userContract.getAddressFromUserId(selectedVoterId));
             }
         }
