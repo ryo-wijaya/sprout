@@ -2,6 +2,8 @@ pragma solidity ^0.5.0;
 
 import "./ERC20.sol";
 
+// As a future work, we can include a function to allow users to exchange NT for ETH, taking a very small commission fee to discourage spam.
+
 contract NativeToken {
     ERC20 erc20Contract;
     address owner;
