@@ -15,6 +15,8 @@ contract User {
         uint256 rating;
     }
 
+    address private owner;
+
     uint256 private numUsers = 1;
     mapping(uint256 => UserProfile) private users;
     // This is a mapping of address -> userType (0 means Freelancer) -> userId
@@ -22,6 +24,10 @@ contract User {
     mapping(uint256 => address) private userIdToAddress; // reverse mapping
     mapping(string => uint256) private usernamesToUserId;
     uint256[] private userList; // This is to display lists of users on the frontend
+
+    constructor() public {
+        owner = msg.sender;
+    }
     // ===================================================== SCHEMA & STATE VARIABLES ===================================================== //
     
 
@@ -37,6 +43,11 @@ contract User {
 
     modifier onlyOwner(uint256 userId) {
         require(addressToUserTypeId[msg.sender][uint(users[userId].userType)] == userId, "You are not the owner of this profile");
+        _;
+    }
+
+    modifier onlyContractOwner() {
+        require(msg.sender == owner, "Caller is not the contract owner");
         _;
     }
 
@@ -157,6 +168,20 @@ contract User {
     */
     function isReviewer(uint256 userId) public view returns(bool) {
         return users[userId].userType == UserType.Reviewer;
+    }
+
+    function transferOwnership(address newOwner) public onlyContractOwner {
+        require(newOwner != address(0), "New owner is the zero address");
+        owner = newOwner;
+    }
+
+    // Transfer Ether held up in this contract to the Owner's address
+    function withdrawEther() public onlyContractOwner {
+        uint256 amount = address(this).balance;
+        require(amount > 0, "User: no Ether to withdraw");
+        // Transfer Ether to the owner's address
+        address payable ownerAddress = address(uint160(owner));
+        ownerAddress.transfer(amount);
     }
     // ============================================================== METHODS ============================================================= //
 }

@@ -2,6 +2,8 @@ pragma solidity ^0.5.0;
 
 import "./ERC20.sol";
 
+// As a future work, we can include a function to allow users to exchange NT for ETH, taking a very small commission fee to discourage spam.
+
 contract SproutToken {
     ERC20 erc20Contract;
     address owner;
@@ -11,6 +13,7 @@ contract SproutToken {
         erc20Contract = e;
         owner = msg.sender;
     }
+
     /**
     * @dev Function to give NT to the recipient for a given wei amount
     * @param recipient address of the recipient that wants to buy the NT

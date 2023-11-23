@@ -3,7 +3,8 @@ var assert = require("assert");
 
 var User = artifacts.require("User");
 var JobListing = artifacts.require("JobListing");
-var NativeToken = artifacts.require("NativeToken");
+var SproutToken = artifacts.require("SproutToken");
+var Escrow = artifacts.require("Escrow");
 
 // Helper functions
 function generateUnixTime(daysFromNow) {
@@ -21,11 +22,12 @@ contract("JobListing", (accounts) => {
   before(async () => {
     userInstance = await User.deployed();
     jobListingInstance = await JobListing.deployed();
-    nativeTokenInstance = await NativeToken.deployed();
+    sproutTokenInstance = await SproutToken.deployed();
+    escrowInstance = await Escrow.deployed();
 
     // 1 ETH gets each user 100 native tokens
-    nativeTokenInstance.getCredit(user1, web3.utils.toWei("1", "ether"));
-    nativeTokenInstance.getCredit(user2, web3.utils.toWei("1", "ether"));
+    sproutTokenInstance.getCredit(user1, web3.utils.toWei("1", "ether"));
+    sproutTokenInstance.getCredit(user2, web3.utils.toWei("1", "ether"));
   });
 
   /*
@@ -314,29 +316,94 @@ contract("JobListing", (accounts) => {
       );
     });
 
-    // TODO: TEST THAT THE FUNDS ARE IN THE ESCROW
+    // Getting details of escrow payment with ID 1, tokens should be 15 (reward) + 10 (staked for DAO) = 25
+    assert.equal(await escrowInstance.getBalance(1), 25, "Invalid Escrow Payment Balance");
+    // Client should be 25 tokens poorer
+    assert.equal(await sproutTokenInstance.checkCredit(user1), 75, "Invalid Client Balance");
 
     // User 1 successfully applies in the end with freelancer ID 2 to user2's Job ID 2 (for the purpose of the next failure test)
     await jobListingInstance.applyForJob(2, 2, "This is my proposal", { from: user1 });
   });
 
   it("Test FAILURE: Failed to accept an application", async () => {
-    // test here
-  });
+    // User1 attempts to accept an application with invalid job ID
+    await truffleAssert.reverts(
+      jobListingInstance.acceptApplication(1, 10, 1, { from: user1 }),
+      "Invalid Job ID"
+    );
 
-  it("Test SUCCESS: Freelancer completes a job", async () => {
-    // test here
+    // User1 with client ID 1 accepts freelancer ID 4's application for job ID 1, application ID 1, that is no longer OPEN
+    await truffleAssert.reverts(
+      jobListingInstance.acceptApplication(1, 1, 1, { from: user1 }),
+      "The job is not open."
+    );
   });
 
   it("Test FAILURE: Failed to complete a job", async () => {
-    // test here
+    // Invalid freelancer ID
+    await truffleAssert.reverts(
+      jobListingInstance.freelancerCompletesJob(10, 1, { from: user2 }),
+      "This userId does not correspond to yourself"
+    );
+
+    // Invalid job ID
+    await truffleAssert.reverts(
+      jobListingInstance.freelancerCompletesJob(4, 5, { from: user2 }),
+      "Invalid Job ID"
+    );
+
+    // Freelancer not tied to the job, freelancer ID 2 attempts to complete job instead of ID 4
+    await truffleAssert.reverts(
+      jobListingInstance.freelancerCompletesJob(2, 1, { from: user1 }),
+      "You are not the accepted freelancer for this job."
+    );
   });
 
-  it("Test SUCCESS: Client accepts job completion", async () => {
-    // test here
+  it("Test SUCCESS: Freelancer completes a job", async () => {
+    // User2 with freelancer ID 4 completes job ID 1
+    let result = await jobListingInstance.freelancerCompletesJob(4, 1, {
+      from: user2,
+    });
+    truffleAssert.eventEmitted(result, "JobMarkedComplete", (ev) => {
+      return ev.jobId.toNumber() === 1 && ev.freelancerId.toNumber() === 4;
+    });
   });
 
   it("Test FAILURE: Failed to accept job completion", async () => {
-    // test here
+    // Client tries to accept an invalid job ID
+    await truffleAssert.reverts(
+      jobListingInstance.clientAcceptsJobCompletion(1, 10, { from: user1 }),
+      "Invalid Job ID"
+    );
+
+    // A different client tries to accept job completion
+    await truffleAssert.reverts(
+      jobListingInstance.clientAcceptsJobCompletion(3, 1, { from: user2 }),
+      "You are not the client who posted this job."
+    );
+
+    // Client tries to accept a job that's not marked as completed
+    await truffleAssert.reverts(
+      jobListingInstance.clientAcceptsJobCompletion(3, 2, { from: user2 }),
+      "This job has not been marked as completed by the freelancer."
+    );
+  });
+
+  it("Test SUCCESS: Client accepts job completion", async () => {
+    // User1 accepts the completion of job ID 1
+    let result = await jobListingInstance.clientAcceptsJobCompletion(1, 1, {
+      from: user1,
+    });
+
+    truffleAssert.eventEmitted(result, "JobAcceptedAsComplete", (ev) => {
+      return ev.jobId.toNumber() === 1 && ev.clientId.toNumber() === 1;
+    });
+
+    // Getting details of escrow payment with ID 1, tokens should be 0
+    assert.equal(await escrowInstance.getBalance(1), 0, "Invalid Escrow Payment Balance");
+    // Client should be 10 (75+10) tokens richer (this is from the refunded staked tokens for any potential disputes)
+    assert.equal(await sproutTokenInstance.checkCredit(user1), 85, "Invalid Client Balance");
+    // Freelancer should be 15 tokens richer (Job's reward was 15 tokens)
+    assert.equal(await sproutTokenInstance.checkCredit(user2), 115, "Invalid Freelancer Balance");
   });
 });
