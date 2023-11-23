@@ -3,7 +3,7 @@ var assert = require("assert");
 
 var User = artifacts.require("User");
 var JobListing = artifacts.require("JobListing");
-var NativeToken = artifacts.require("NativeToken");
+var SproutToken = artifacts.require("SproutToken");
 var Escrow = artifacts.require("Escrow");
 
 // Helper functions
@@ -22,12 +22,12 @@ contract("JobListing", (accounts) => {
   before(async () => {
     userInstance = await User.deployed();
     jobListingInstance = await JobListing.deployed();
-    nativeTokenInstance = await NativeToken.deployed();
+    sproutTokenInstance = await SproutToken.deployed();
     escrowInstance = await Escrow.deployed();
 
     // 1 ETH gets each user 100 native tokens
-    nativeTokenInstance.getCredit(user1, web3.utils.toWei("1", "ether"));
-    nativeTokenInstance.getCredit(user2, web3.utils.toWei("1", "ether"));
+    sproutTokenInstance.getCredit(user1, web3.utils.toWei("1", "ether"));
+    sproutTokenInstance.getCredit(user2, web3.utils.toWei("1", "ether"));
   });
 
   /*
@@ -319,7 +319,7 @@ contract("JobListing", (accounts) => {
     // Getting details of escrow payment with ID 1, tokens should be 15 (reward) + 10 (staked for DAO) = 25
     assert.equal(await escrowInstance.getBalance(1), 25, "Invalid Escrow Payment Balance");
     // Client should be 25 tokens poorer
-    assert.equal(await nativeTokenInstance.checkCredit(user1), 75, "Invalid Client Balance");
+    assert.equal(await sproutTokenInstance.checkCredit(user1), 75, "Invalid Client Balance");
 
     // User 1 successfully applies in the end with freelancer ID 2 to user2's Job ID 2 (for the purpose of the next failure test)
     await jobListingInstance.applyForJob(2, 2, "This is my proposal", { from: user1 });
@@ -402,8 +402,8 @@ contract("JobListing", (accounts) => {
     // Getting details of escrow payment with ID 1, tokens should be 0
     assert.equal(await escrowInstance.getBalance(1), 0, "Invalid Escrow Payment Balance");
     // Client should be 10 (75+10) tokens richer (this is from the refunded staked tokens for any potential disputes)
-    assert.equal(await nativeTokenInstance.checkCredit(user1), 85, "Invalid Client Balance");
+    assert.equal(await sproutTokenInstance.checkCredit(user1), 85, "Invalid Client Balance");
     // Freelancer should be 15 tokens richer (Job's reward was 15 tokens)
-    assert.equal(await nativeTokenInstance.checkCredit(user2), 115, "Invalid Freelancer Balance");
+    assert.equal(await sproutTokenInstance.checkCredit(user2), 115, "Invalid Freelancer Balance");
   });
 });

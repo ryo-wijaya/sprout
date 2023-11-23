@@ -3,9 +3,8 @@ var assert = require("assert");
 
 var User = artifacts.require("User");
 var JobListing = artifacts.require("JobListing");
-var NativeToken = artifacts.require("NativeToken");
+var SproutToken = artifacts.require("SproutToken");
 var JobReview = artifacts.require("JobReview");
-
 
 // Helper functions
 function generateUnixTime(daysFromNow) {
@@ -14,10 +13,9 @@ function generateUnixTime(daysFromNow) {
   return Math.floor(now.getTime() / 1000);
 }
 
-
 contract("JobReview", (accounts) => {
   let userInstance;
-  const owner = accounts[0]; 
+  const owner = accounts[0];
   const user1 = accounts[1];
   const user2 = accounts[2];
 
@@ -25,11 +23,11 @@ contract("JobReview", (accounts) => {
     userInstance = await User.deployed();
     jobListingInstance = await JobListing.deployed();
     jobReviewInstance = await JobReview.deployed();
-    nativeTokenInstance = await NativeToken.deployed();
+    sproutTokenInstance = await SproutToken.deployed();
 
     // 1 ETH gets each user 100 native tokens
-    nativeTokenInstance.getCredit(user1, web3.utils.toWei("1", "ether"));
-    nativeTokenInstance.getCredit(user2, web3.utils.toWei("1", "ether"));
+    sproutTokenInstance.getCredit(user1, web3.utils.toWei("1", "ether"));
+    sproutTokenInstance.getCredit(user2, web3.utils.toWei("1", "ether"));
   });
 
   it("Test SUCCESS: regiser 4 user profiles", async () => {
@@ -137,27 +135,22 @@ contract("JobReview", (accounts) => {
   it("Test SUCCESS: Freelancer completes a job", async () => {
     // User2 with freelancer ID 4 completes job ID 1
     let result = await jobListingInstance.freelancerCompletesJob(4, 1, {
-      from: user2
+      from: user2,
     });
-    
+
     truffleAssert.eventEmitted(result, "JobMarkedComplete", (ev) => {
-      return (
-        ev.jobId.toNumber() === 1 && ev.freelancerId.toNumber() === 4
-      );
+      return ev.jobId.toNumber() === 1 && ev.freelancerId.toNumber() === 4;
     });
   });
-
 
   it("Test SUCCESS: Client accepts job completion", async () => {
     // User1 with client ID 1 accepts completed job ID 1 from freelancer User2 with ID 4
     let result = await jobListingInstance.clientAcceptsJobCompletion(1, 1, {
-      from: user1
-    }); 
+      from: user1,
+    });
 
     truffleAssert.eventEmitted(result, "JobAcceptedAsComplete", (ev) => {
-      return (
-        ev.jobId.toNumber() === 1 && ev.clientId.toNumber() === 1
-      );
+      return ev.jobId.toNumber() === 1 && ev.clientId.toNumber() === 1;
     });
   });
 
@@ -166,13 +159,11 @@ contract("JobReview", (accounts) => {
   it("Test SUCCESS: Client leaves a review for freelancer", async () => {
     // User1 with client ID 1 creates a review for user2 Freelancer of ID 2 for Job with ID 1
     let result = await jobReviewInstance.createFreelancerReview(1, 4, 1, 5, "His work is amazing!", {
-      from: user1
+      from: user1,
     });
 
     truffleAssert.eventEmitted(result, "FreelancerReviewed", (ev) => {
-      return (
-        ev._freelancerId.toNumber() === 4
-      );
+      return ev._freelancerId.toNumber() === 4;
     });
     // Check Review details
     let reviewDetails = await jobReviewInstance.getReviewDetails(0);
@@ -184,26 +175,32 @@ contract("JobReview", (accounts) => {
 
   it("Test FAILURE: Client fails to leave a review for a freelancer", async () => {
     // User1 but freelancer ID 2 tries to leave the review
-    await truffleAssert.reverts(jobReviewInstance.createFreelancerReview(2,4,1,5, "Amazing work!", {from: user1}), "User is not a client");
-    
+    await truffleAssert.reverts(
+      jobReviewInstance.createFreelancerReview(2, 4, 1, 5, "Amazing work!", { from: user1 }),
+      "User is not a client"
+    );
+
     // User2 tries to leave a review
-    await truffleAssert.reverts(jobReviewInstance.createFreelancerReview(1,4,1,5, "Amazing work!", {from: user2}), "This userId does not correspond to yourself");
+    await truffleAssert.reverts(
+      jobReviewInstance.createFreelancerReview(1, 4, 1, 5, "Amazing work!", { from: user2 }),
+      "This userId does not correspond to yourself"
+    );
 
     // User1 attempts to leave a rating that is not between 1-5
-    await truffleAssert.reverts(jobReviewInstance.createFreelancerReview(1, 4, 1, 10, "Amazing work", {from: user1}), "Invalid rating, rating is a range between 1-5");
-
-  })
+    await truffleAssert.reverts(
+      jobReviewInstance.createFreelancerReview(1, 4, 1, 10, "Amazing work", { from: user1 }),
+      "Invalid rating, rating is a range between 1-5"
+    );
+  });
 
   it("Test SUCCESS: Freelancer leaves a review for client", async () => {
     // User2 with freelancer ID 4 creates a review for user1 Client of ID 1 for Job with ID 1
     let result = await jobReviewInstance.createClientReview(1, 4, 1, 5, "He was very easy to work with!", {
-      from: user2
+      from: user2,
     });
 
     truffleAssert.eventEmitted(result, "ClientReviewed", (ev) => {
-      return (
-        ev._clientId.toNumber() === 1
-      );
+      return ev._clientId.toNumber() === 1;
     });
     // Check Review details
     let reviewDetails = await jobReviewInstance.getReviewDetails(1);
@@ -215,14 +212,21 @@ contract("JobReview", (accounts) => {
 
   it("Test FAILURE: Freelancer fails to leave a review for a client", async () => {
     // User2 but freelancer ID 3 tries to leave the review
-    await truffleAssert.reverts(jobReviewInstance.createClientReview(1,3,1,5, "Thanks for the work!", {from: user2}), "User is not a freelancer");
-    
+    await truffleAssert.reverts(
+      jobReviewInstance.createClientReview(1, 3, 1, 5, "Thanks for the work!", { from: user2 }),
+      "User is not a freelancer"
+    );
+
     // User2 tries to leave a review
-    await truffleAssert.reverts(jobReviewInstance.createClientReview(1,4,1,5, "Thanks for the work!", {from: user1}), "This userId does not correspond to yourself");
+    await truffleAssert.reverts(
+      jobReviewInstance.createClientReview(1, 4, 1, 5, "Thanks for the work!", { from: user1 }),
+      "This userId does not correspond to yourself"
+    );
 
     // User1 attempts to leave a rating that is not between 1-5
-    await truffleAssert.reverts(jobReviewInstance.createClientReview(1, 4, 1, 10, "Thanks for the work!", {from: user2}), "Invalid rating, rating is a range between 1-5");
-
-  })
-
+    await truffleAssert.reverts(
+      jobReviewInstance.createClientReview(1, 4, 1, 10, "Thanks for the work!", { from: user2 }),
+      "Invalid rating, rating is a range between 1-5"
+    );
+  });
 });

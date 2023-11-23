@@ -1,6 +1,6 @@
 const User = artifacts.require("User");
 const JobListing = artifacts.require("JobListing");
-const NativeToken = artifacts.require("NativeToken");
+const SproutToken = artifacts.require("SproutToken");
 const Escrow = artifacts.require("Escrow");
 const DisputeResolutionDAO = artifacts.require("DisputeResolutionDAO");
 const JobReview = artifacts.require("JobReview");
@@ -11,7 +11,7 @@ const maxNumberOfWinners = x * y; // The maximum number of winners that can be r
 
 module.exports = async (deployer, network, accounts) => {
   await deployer.deploy(User);
-  await deployer.deploy(NativeToken);
+  await deployer.deploy(SproutToken);
   /*
    * We deploy the escrow contract with 10 tokens (x) as the amount for a client to stake in case of a potential dispute,
    * and 1 token (y) as the amount to reward each winner voter in the event of this dispute
@@ -19,7 +19,7 @@ module.exports = async (deployer, network, accounts) => {
    *
    * x is also passed into the jobListing contract
    */
-  await deployer.deploy(Escrow, User.address, NativeToken.address, x, y);
+  await deployer.deploy(Escrow, User.address, SproutToken.address, x, y);
   await deployer.deploy(JobListing, User.address, Escrow.address, x);
   await deployer.deploy(JobReview, User.address, JobListing.address);
   /*

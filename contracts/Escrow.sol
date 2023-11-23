@@ -35,9 +35,9 @@ contract Escrow {
     User public userContract; // Reference to the User Contract
     mapping(uint256 => Payment) public payments;
 
-    constructor(address _userContract, address _nativeTokenContract, uint256 _stakedTokens, uint256 _eachVoterReward) public {
+    constructor(address _userContract, address _sproutTokenContract, uint256 _stakedTokens, uint256 _eachVoterReward) public {
         userContract = User(_userContract); // The userclass of this address, only clients should be able to pay
-        nativeTokenContract = NativeToken(_nativeTokenContract);
+        sproutTokenContract = SproutToken(_sproutTokenContract);
 
         // Set staked tokens and voter reward values as specified by the deployer
         stakedTokens = _stakedTokens;
@@ -91,7 +91,7 @@ contract Escrow {
         address clientAddress = userContract.getAddressFromUserId(_clientId);
         
         //Check that client does indeed have amount he wants to give
-        require(nativeTokenContract.checkCredit(clientAddress) >= _amount, "You do not have enough tokens to pay the reward + staked tokens (in the event of a dispute)");
+        require(sproutTokenContract.checkCredit(clientAddress) >= _amount, "You do not have enough tokens to pay the reward + staked tokens (in the event of a dispute)");
 
         numPayments++;
 
@@ -104,9 +104,9 @@ contract Escrow {
         payment.status = EscrowStatus.AWAITING_PAYMENT;
 
         //Client sends payment to Escrow
-        nativeTokenContract.transferCredit(address(this), _amount);
+        sproutTokenContract.transferCredit(address(this), _amount);
 
-        nativeTokenContract.approve(address(this), _amount);
+        sproutTokenContract.approve(address(this), _amount);
 
         emit PaymentInitiated(numPayments, _jobId, _freelancerId, _clientId, _amount);
 
@@ -115,7 +115,7 @@ contract Escrow {
 
 
     /**
-        * Function for the NativeTokens to be transferred to the Freelancer on completion of Job, with the option to be with or without the staked tokens
+        * Function for the SproutTokens to be transferred to the Freelancer on completion of Job, with the option to be with or without the staked tokens
         *
         * Considerations:
         * - The payment status must be AWAITING_PAYMENT
@@ -127,11 +127,11 @@ contract Escrow {
         require(payment.status == EscrowStatus.AWAITING_PAYMENT, "Invalid payment status");
 
         // Pay the freelancer
-        nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.freelancerId), payment.amount - stakedTokens);
+        sproutTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.freelancerId), payment.amount - stakedTokens);
 
         if (withStakedTokens) {
             // Refund staked tokens to the client, empty balance and mark as delivered
-            nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.clientId), stakedTokens);
+            sproutTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.clientId), stakedTokens);
             payment.balance = 0;
             payment.status = EscrowStatus.COMPLETE;
             emit PaymentComplete(_paymentId);
@@ -156,7 +156,7 @@ contract Escrow {
         Payment storage payment = payments[_paymentId];
         require(payment.status == EscrowStatus.AWAITING_PAYMENT, "Invalid payment status");
 
-        nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.clientId), payment.amount - stakedTokens);
+        sproutTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.clientId), payment.amount - stakedTokens);
         payment.balance = stakedTokens;
         payment.status = EscrowStatus.PARTIALLY_REFUNDED;
         emit PaymentPartiallyRefunded(_paymentId);
@@ -181,7 +181,7 @@ contract Escrow {
         require(payment.status == EscrowStatus.PARTIALLY_REFUNDED, "Invalid payment status");
 
         if (payment.balance >= eachVoterReward) {
-            nativeTokenContract.transferFrom(address(this), voterAddress, eachVoterReward);
+            sproutTokenContract.transferFrom(address(this), voterAddress, eachVoterReward);
             payment.balance--;
             emit VoterReward(_paymentId, voterAddress);
         }
@@ -206,7 +206,7 @@ contract Escrow {
         require(payment.status == EscrowStatus.PARTIALLY_REFUNDED, "Invalid payment status");
 
         if (payment.balance > 0) {
-            nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.clientId), payment.balance);
+            sproutTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.clientId), payment.balance);
             payment.balance = 0;
         }
 

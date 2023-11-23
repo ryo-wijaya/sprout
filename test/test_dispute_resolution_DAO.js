@@ -3,7 +3,7 @@ var assert = require("assert");
 
 var User = artifacts.require("User");
 var JobListing = artifacts.require("JobListing");
-var NativeToken = artifacts.require("NativeToken");
+var SproutToken = artifacts.require("SproutToken");
 var Escrow = artifacts.require("Escrow");
 var DisputeResolutionDAO = artifacts.require("DisputeResolutionDAO");
 
@@ -32,21 +32,21 @@ contract("DisputeResolutionDAO", (accounts) => {
   before(async () => {
     userInstance = await User.deployed();
     jobListingInstance = await JobListing.deployed();
-    nativeTokenInstance = await NativeToken.deployed();
+    sproutTokenInstance = await SproutToken.deployed();
     escrowInstance = await Escrow.deployed();
     disputeResolutionDAOInstance = await DisputeResolutionDAO.deployed();
 
     // 1 ETH gets each user 100 native tokens
-    nativeTokenInstance.getCredit(user1, web3.utils.toWei("1", "ether"));
-    nativeTokenInstance.getCredit(user2, web3.utils.toWei("1", "ether"));
+    sproutTokenInstance.getCredit(user1, web3.utils.toWei("1", "ether"));
+    sproutTokenInstance.getCredit(user2, web3.utils.toWei("1", "ether"));
 
-    nativeTokenInstance.getCredit(user3, web3.utils.toWei("1", "ether"));
-    nativeTokenInstance.getCredit(user4, web3.utils.toWei("1", "ether"));
-    nativeTokenInstance.getCredit(user5, web3.utils.toWei("1", "ether"));
-    nativeTokenInstance.getCredit(user6, web3.utils.toWei("1", "ether"));
-    nativeTokenInstance.getCredit(user7, web3.utils.toWei("1", "ether"));
-    nativeTokenInstance.getCredit(user8, web3.utils.toWei("1", "ether"));
-    nativeTokenInstance.getCredit(user9, web3.utils.toWei("1", "ether"));
+    sproutTokenInstance.getCredit(user3, web3.utils.toWei("1", "ether"));
+    sproutTokenInstance.getCredit(user4, web3.utils.toWei("1", "ether"));
+    sproutTokenInstance.getCredit(user5, web3.utils.toWei("1", "ether"));
+    sproutTokenInstance.getCredit(user6, web3.utils.toWei("1", "ether"));
+    sproutTokenInstance.getCredit(user7, web3.utils.toWei("1", "ether"));
+    sproutTokenInstance.getCredit(user8, web3.utils.toWei("1", "ether"));
+    sproutTokenInstance.getCredit(user9, web3.utils.toWei("1", "ether"));
   });
 
   it("Test SUCCESS: regiser 4 user profiles for users 1 and 2", async () => {
@@ -165,7 +165,7 @@ contract("DisputeResolutionDAO", (accounts) => {
     // Getting details of escrow payment with ID 1, tokens should be 15 (reward) + 10 (staked for DAO) = 25
     assert.equal(await escrowInstance.getBalance(1), 25, "Invalid Escrow Payment Balance");
     // Client should be 25 tokens poorer
-    assert.equal(await nativeTokenInstance.checkCredit(user1), 75, "Invalid Client Balance");
+    assert.equal(await sproutTokenInstance.checkCredit(user1), 75, "Invalid Client Balance");
   });
 
   it("Test SUCCESS: Freelancer completes a job", async () => {
@@ -231,13 +231,13 @@ contract("DisputeResolutionDAO", (accounts) => {
     // Reviewers (user3 to user7) should have 101 tokens each (1 token reward)
     // Reviewers (user8 and user9) should have 100 tokens each (no reward)
 
-    let clientBalance = await nativeTokenInstance.checkCredit(user1);
-    let freelancerBalance = await nativeTokenInstance.checkCredit(user2);
+    let clientBalance = await sproutTokenInstance.checkCredit(user1);
+    let freelancerBalance = await sproutTokenInstance.checkCredit(user2);
     assert.equal(clientBalance.toNumber(), 95, "Client should have 95 tokens");
     assert.equal(freelancerBalance.toNumber(), 100, "Freelancer should have 100 tokens");
 
     for (let i = 3; i <= 9; i++) {
-      let reviewerBalance = await nativeTokenInstance.checkCredit(accounts[i]);
+      let reviewerBalance = await sproutTokenInstance.checkCredit(accounts[i]);
       if (i <= 7) {
         assert.equal(reviewerBalance.toNumber(), 101, `Reviewer ${i} should have 101 tokens`);
       } else {
