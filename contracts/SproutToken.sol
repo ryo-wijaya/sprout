@@ -4,7 +4,7 @@ import "./ERC20.sol";
 
 // As a future work, we can include a function to allow users to exchange NT for ETH, taking a very small commission fee to discourage spam.
 
-contract NativeToken {
+contract SproutToken {
     ERC20 erc20Contract;
     address owner;
 
@@ -24,7 +24,7 @@ contract NativeToken {
         public
         returns (uint256)
     {
-        uint256 amt = weiAmt / (1000000000000000000/100); // Convert weiAmt to NativeToken
+        uint256 amt = weiAmt / (1000000000000000000/100); // Convert weiAmt to SproutToken
         erc20Contract.mint(recipient, amt);
         return amt;
     }

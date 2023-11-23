@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 
-import "./NativeToken.sol";
+import "./SproutToken.sol";
 import "./User.sol";
 import "./JobListing.sol";
 
@@ -31,7 +31,7 @@ contract Escrow {
     uint256 public eachVoterReward;
 
     uint256 public numPayments = 0;
-    NativeToken nativeTokenContract;
+    SproutToken sproutTokenContract;
     User public userContract; // Reference to the User Contract
     mapping(uint256 => Payment) public payments;
 
@@ -79,15 +79,14 @@ contract Escrow {
     // ============================================================== METHODS ============================================================= //
     /**
         * Function for a client to initiate the payment process with a freelancer when the Job starts (Ongoing status)
-        * NativeToken is transferred to the Escrow Contract
+        * SproutToken is transferred to the Escrow Contract
         *
         * Considerations:
         * - The freelancer and client must be of different addresses
         * - The freelancerId/clientId must be a freelancer/client
-        * - The client must have enough NativeTokens
-        * - The job must be in Ongoing status (already checked in the caller - JobListing.sol constract)
+        * - The client must have enough SproutTokens
+        * - The job must be in Ongoing status (already checked in the caller)
     */
-
     function initiatePayment(uint256 _clientId, uint256 _freelancerId, uint256 _jobId, uint256 _amount) public payable differentAddresses(_freelancerId, _clientId) isClient(_clientId) isFreelancer(_freelancerId) returns (uint256) {
         address clientAddress = userContract.getAddressFromUserId(_clientId);
         
@@ -146,7 +145,7 @@ contract Escrow {
 
 
     /**
-        * Function for the NativeTokens to be refunded to the client minus the staked tokens
+        * Function for the SproutTokens to be refunded to the client minus the staked tokens
         *
         * Considerations:
         * - The payment status must be AWAITING_PAYMENT
