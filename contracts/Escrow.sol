@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 
-import "./NativeToken.sol";
+import "./SproutToken.sol";
 import "./User.sol";
 import "./JobListing.sol";
 
@@ -19,14 +19,14 @@ contract Escrow {
     }
 
     uint256 public numPayments = 0;
-    NativeToken nativeTokenContract;
+    SproutToken sproutTokenContract;
     User public userContract; // Reference to the User Contract
     JobListing public jobContract; // Reference to the Job Contract
     mapping(uint256 => Payment) public payments;
 
-    constructor(address _userContract, address _nativeTokenContract, address _jobContract) public {
+    constructor(address _userContract, address _sproutTokenContract, address _jobContract) public {
         userContract = User(_userContract); // The userclass of this address, only clients should be able to pay
-        nativeTokenContract = NativeToken(_nativeTokenContract);
+        sproutTokenContract = SproutToken(_sproutTokenContract);
         jobContract = JobListing(_jobContract);
     }
 
@@ -63,17 +63,17 @@ contract Escrow {
     // ============================================================== METHODS ============================================================= //
     /**
         * Function for a client to initiate the payment process with a freelancer when the Job starts (Ongoing status)
-        * NativeToken is transferred to the Escrow Contract
+        * SproutToken is transferred to the Escrow Contract
         *
         * Considerations:
         * - The freelancer and client must be of different addresses
         * - The freelancerId/clientId must be a freelancer/client
-        * - The client must have enough NativeTokens
+        * - The client must have enough SproutTokens
         * - The job must be in Ongoing status
     */
     function initiatePayment(uint256 _clientId, uint256 _freelancerId, uint256 _jobId, uint256 _amount) public payable differentAddresses(_freelancerId, _clientId) isClient(_clientId) isFreelancer(_freelancerId) {
         //Check that client does indeed have amount he wants to give
-        require(nativeTokenContract.checkCredit(msg.sender) >= _amount, "Client does not have enough tokens for payment");
+        require(sproutTokenContract.checkCredit(msg.sender) >= _amount, "Client does not have enough tokens for payment");
         require(jobContract.isJobOngoing(_jobId), "Job is currently not in Ongoing status.");
 
         Payment storage payment = payments[numPayments];
@@ -84,9 +84,9 @@ contract Escrow {
         payment.status = EscrowStatus.AWAITING_PAYMENT;
 
         //Client sends payment to Escrow contract
-        nativeTokenContract.transferCredit(address(this), _amount);
+        sproutTokenContract.transferCredit(address(this), _amount);
 
-        nativeTokenContract.approve(msg.sender, _amount);
+        sproutTokenContract.approve(msg.sender, _amount);
 
         emit PaymentInitiated(numPayments, _jobId, _freelancerId, _clientId, _amount);
 
@@ -95,8 +95,8 @@ contract Escrow {
 
 
     /**
-        * Function for the NativeTokens to be transferred to the Freelancer on completion of Job
-        * NativeToken is transferred to the Freelancer
+        * Function for the SproutTokens to be transferred to the Freelancer on completion of Job
+        * SproutToken is transferred to the Freelancer
         *
         * Considerations:
         * - The payment status must be AWAITING_PAYMENT
@@ -112,16 +112,16 @@ contract Escrow {
 
         //Client confirms delivery
         payment.status = EscrowStatus.COMPLETE;
-        nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.freelancerId), payment.amount);
+        sproutTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.freelancerId), payment.amount);
 
         //Client cannot take more money out of contract
-        nativeTokenContract.approve(msg.sender, 0);
+        sproutTokenContract.approve(msg.sender, 0);
         emit PaymentComplete(_paymentId);
     }
 
 
     /**
-        * Function for the NativeTokens to be refunded --> Does this depend on any disputes?
+        * Function for the SproutTokens to be refunded --> Does this depend on any disputes?
         *
         * Considerations:
         * - The payment status must be AWAITING_PAYMENT
@@ -134,12 +134,12 @@ contract Escrow {
         require(jobContract.isJobClosed(payment.jobId) != true, "Job cannot be completed");
         //With my current code only the client can refund payment
         //cause only client approved to take money out of the escrow contract
-        nativeTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.clientId), payment.amount);
+        sproutTokenContract.transferFrom(address(this), userContract.getAddressFromUserId(payment.clientId), payment.amount);
         // does this depend on the DAO contract? 
         payment.status = EscrowStatus.REFUNDED;
 
         //Client cannot take more money out of contract
-        nativeTokenContract.approve(msg.sender, 0);
+        sproutTokenContract.approve(msg.sender, 0);
         emit PaymentRefunded(_paymentId);
 
     }

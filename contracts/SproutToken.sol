@@ -2,7 +2,7 @@ pragma solidity ^0.5.0;
 
 import "./ERC20.sol";
 
-contract NativeToken {
+contract SproutToken {
     ERC20 erc20Contract;
     address owner;
 
@@ -21,7 +21,7 @@ contract NativeToken {
         public
         returns (uint256)
     {
-        uint256 amt = weiAmt / (1000000000000000000/100); // Convert weiAmt to NativeToken
+        uint256 amt = weiAmt / (1000000000000000000/100); // Convert weiAmt to SproutToken
         erc20Contract.mint(recipient, amt);
         return amt;
     }

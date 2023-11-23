@@ -61,7 +61,7 @@ contract ERC20 {
     mapping(address => uint256) balances;
     
     
-    string public constant name = "NativeToken";
+    string public constant name = "SproutToken";
     string public constant symbol = "NT";
     uint8 public constant decimals = 18;
     uint256 totalSupply_;

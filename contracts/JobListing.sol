@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 import "./User.sol";
-import "./NativeToken.sol";
+import "./SproutToken.sol";
 
 contract JobListing {
     
@@ -31,7 +31,7 @@ contract JobListing {
     }
 
     User userContract;
-    NativeToken nativeTokenContract;
+    SproutToken sproutTokenContract;
     uint256 private jobCount = 0;
     mapping(uint256 => Job) jobs; // Get job details here by jobId
     // This is a mapping of job -> applications -> application
@@ -43,9 +43,9 @@ contract JobListing {
     // keep track of if a freelancer has already applied for a job
     mapping(uint256 => mapping(uint256 => bool)) private hasApplied;
 
-    constructor(address userAddress, address nativeTokenAddress) public {
+    constructor(address userAddress, address sproutTokenAddress) public {
         userContract = User(userAddress);
-        nativeTokenContract = NativeToken(nativeTokenAddress);
+        sproutTokenContract = SproutToken(sproutTokenAddress);
     }
     // ===================================================== SCHEMA & STATE VARIABLES ===================================================== //
 
@@ -244,7 +244,7 @@ contract JobListing {
         require(job.status == JobStatus.OPEN, "The job is not open.");
         require(job.clientId == clientId, "You are not the client who posted this job."); // this is a recheck for userIdMatches
         require(!userContract.haveSameAddress(application.freelancerId, job.clientId), "You are both the freelancer and the client, you cannot accept your own job application");
-        require(nativeTokenContract.checkCredit(msg.sender) >= job.reward + 10, "You do not have enough tokens to pay the reward + 10 tokens (in the event of a dispute)");
+        require(sproutTokenContract.checkCredit(msg.sender) >= job.reward + 10, "You do not have enough tokens to pay the reward + 10 tokens (in the event of a dispute)");
 
         application.isAccepted = true;
         job.status = JobStatus.ONGOING;
