@@ -1,9 +1,5 @@
 pragma solidity ^0.5.0;
 
-//first need to approve the address of spender 
-// Check the allowance
-//Finally able to call transferFrom to transfer tokens
-
 /**
  * @title SafeMath
  * @dev Math operations with safety checks that throw on error

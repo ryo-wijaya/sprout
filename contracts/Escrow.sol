@@ -36,7 +36,7 @@ contract Escrow {
     mapping(uint256 => Payment) public payments;
 
     constructor(address _userContract, address _sproutTokenContract, uint256 _stakedTokens, uint256 _eachVoterReward) public {
-        userContract = User(_userContract); // The userclass of this address, only clients should be able to pay
+        userContract = User(_userContract);
         sproutTokenContract = SproutToken(_sproutTokenContract);
 
         // Set staked tokens and voter reward values as specified by the deployer
@@ -78,14 +78,19 @@ contract Escrow {
 
     // ============================================================== METHODS ============================================================= //
     /**
-        * Function for a client to initiate the payment process with a freelancer when the Job starts (Ongoing status)
-        * SproutToken is transferred to the Escrow Contract
-        *
-        * Considerations:
-        * - The freelancer and client must be of different addresses
-        * - The freelancerId/clientId must be a freelancer/client
-        * - The client must have enough SproutTokens
-        * - The job must be in Ongoing status (already checked in the caller)
+    * @dev Function for a client to initiate the payment process with a freelancer when the job starts. SproutTokens are transferred to the Escrow Contract.
+    *
+    * Considerations:
+    * - The freelancer and client must be of different addresses.
+    * - The freelancerId/clientId must be a freelancer/client.
+    * - The client must have enough SproutTokens.
+    * - The job must be in Ongoing status (already checked in the caller).
+    *
+    * @param _clientId The unique identifier of the client.
+    * @param _freelancerId The unique identifier of the freelancer.
+    * @param _jobId The unique identifier of the job.
+    * @param _amount The amount of SproutTokens to be paid.
+    * @return uint256 unique identifier of the created payment object.
     */
     function initiatePayment(uint256 _clientId, uint256 _freelancerId, uint256 _jobId, uint256 _amount) public payable differentAddresses(_freelancerId, _clientId) isClient(_clientId) isFreelancer(_freelancerId) returns (uint256) {
         address clientAddress = userContract.getAddressFromUserId(_clientId);
@@ -103,23 +108,28 @@ contract Escrow {
         payment.balance = _amount;
         payment.status = EscrowStatus.AWAITING_PAYMENT;
 
-        //Client sends payment to Escrow
+        // Client sends payment to Escrow
         sproutTokenContract.transferCredit(address(this), _amount);
 
+        // Client approves Escrow to spend the SproutTokens
         sproutTokenContract.approve(address(this), _amount);
 
         emit PaymentInitiated(numPayments, _jobId, _freelancerId, _clientId, _amount);
 
+        // Returns the paymentID for the Job struct to store (in the JobListing contract)
         return numPayments;
     }
 
 
     /**
-        * Function for the SproutTokens to be transferred to the Freelancer on completion of Job, with the option to be with or without the staked tokens
-        *
-        * Considerations:
-        * - The payment status must be AWAITING_PAYMENT
-        * - The job must be COMPLETED (already checked by the jobListing contract)
+    * @dev Function for SproutTokens to be transferred to the Freelancer on completion of the job, with the option to include or exclude the staked tokens.
+    *
+    * Considerations:
+    * - The payment status must be AWAITING_PAYMENT.
+    * - The job must be COMPLETED (already checked by the JobListing contract).
+    *
+    * @param _paymentId The ID of the escrow payment.
+    * @param withStakedTokens A boolean indicating whether to include staked tokens in the payment to the freelancer.
     */
     function confirmDelivery(uint256 _paymentId, bool withStakedTokens) public payable validPaymentId(_paymentId) {
         Payment storage payment = payments[_paymentId];
@@ -145,12 +155,14 @@ contract Escrow {
 
 
     /**
-        * Function for the SproutTokens to be refunded to the client minus the staked tokens
-        *
-        * Considerations:
-        * - The payment status must be AWAITING_PAYMENT
-        * - The msg.sender must be the client of the particular payment
-        * - The job cannot be COMPLETED (already checked by the jobListing contract)
+    * @dev Function for SproutTokens to be refunded to the client minus the staked tokens.
+    *
+    * Considerations:
+    * - The payment status must be AWAITING_PAYMENT.
+    * - The msg.sender must be the client of the particular payment.
+    * - The job cannot be COMPLETED (already checked by the JobListing contract).
+    *
+    * @param _paymentId The ID of the escrow payment to be refunded.
     */
     function refundPayment(uint256 _paymentId) public validPaymentId(_paymentId) {
         Payment storage payment = payments[_paymentId];
@@ -214,23 +226,52 @@ contract Escrow {
         emit PaymentRefunded(_paymentId);
     }
 
-    // Getter functions    
+    /**
+    * @dev Retrieve the client ID associated with a specific payment.
+    *
+    * @param _paymentId The unique identifier of the payment.
+    * @return uint256 client ID associated with the payment.
+    */
     function getClientId(uint256 _paymentId) public view returns (uint256) {
         return payments[_paymentId].clientId;
     }
 
+    /**
+    * @dev Retrieve the freelancer ID associated with a specific payment.
+    *
+    * @param _paymentId The unique identifier of the payment.
+    * @return uint256 freelancer ID associated with the payment.
+    */
     function getFreelancerId(uint256 _paymentId) public view returns (uint256) {
         return payments[_paymentId].freelancerId;
     }
 
+    /**
+    * @dev Retrieve the job ID associated with a specific payment.
+    *
+    * @param _paymentId The unique identifier of the payment.
+    * @return uint256 job ID associated with the payment.
+    */
     function getJobId(uint256 _paymentId) public view returns (uint256) {
         return payments[_paymentId].jobId;
     }
 
+    /**
+    * @dev Retrieve the current balance of a specific payment.
+    *
+    * @param _paymentId The unique identifier of the payment.
+    * @return uint256 representation of the current existing balance of the payment.
+    */
     function getBalance(uint256 _paymentId) public view returns (uint256) {
         return payments[_paymentId].balance;
     }
 
+    /**
+    * @dev Retrieve the current status of a specific payment.
+    *
+    * @param _paymentId The unique identifier of the payment.
+    * @return EscrowStatus of the payment as an EscrowStatus enum value.
+    */
     function getCurrentStatus(uint256 _paymentId) public view returns (EscrowStatus) {
         return payments[_paymentId].status;
     }

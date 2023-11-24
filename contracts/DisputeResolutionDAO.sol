@@ -67,8 +67,7 @@ contract DisputeResolutionDAO {
         jobListingContract = JobListing(jobListingAddress);
         maxNumberOfWinners = _maxNumberOfWinners;
     }
-    // ===================================================== SCHEMA & STATE VARIABLES ===================================================== //
-    
+
     // ====================================================== EVENTS & MODIFIERS ========================================================== //
     event DisputeStarted(uint256 disputeId, uint256 jobId, uint256 endTime);
     event DisputeClosed(uint256 disputeId, DisputeStatus status);
@@ -84,21 +83,21 @@ contract DisputeResolutionDAO {
         _;
     }
 
-    // ====================================================== EVENTS & MODIFIERS ========================================================== //
-
 
     // ============================================================== METHODS ============================================================= //
 
     /**
-     * Start a new dispute.
-     *
-     * Considerations:
-     * - You must be who you say you are (userId wise)
-     * - The jobId must be valid
-     * - The job must be in the completed status
-     * - Only the client associated with the job can initiate a dispute
-     * - The job must not have been disputed before
-     */
+    * @dev Start a new dispute for a job.
+    *
+    * Considerations:
+    * - The user calling must match the clientId.
+    * - The jobId must be valid and the job must be in the completed status.
+    * - Only the client associated with the job can initiate a dispute.
+    * - The job must not have been disputed before.
+    *
+    * @param clientId The unique identifier of the client initiating the dispute.
+    * @param jobId The unique identifier of the job associated with the dispute.
+    */
     function startDispute(uint256 clientId, uint256 jobId) external userIdMatches(clientId) {
         require(jobListingContract.isValidJob(jobId), "Invalid Job ID");
         require(!isDisputed[jobId], "Job has already been disputed");
@@ -119,7 +118,7 @@ contract DisputeResolutionDAO {
     }
 
     /**
-     * Resolve an existing dispute.
+     * @dev Resolve an existing dispute.
      * There are 2 ways this should be triggered in production:
      *      1. The endTime has passed, and the dispute is still in the PENDING status, and someone attempts a vote (passive closure)
      *      2. Some sort of CRON functionality provided by external services e.g. Ethereum Alarm Clock
@@ -127,7 +126,9 @@ contract DisputeResolutionDAO {
      * Considerations:
      * - Voting period must have ended
      * - The dispute should be in the PENDING status
-     */
+    *
+    * @param disputeId The unique identifier of the dispute to be resolved.
+    */
     function resolveDispute(uint256 disputeId) internal validDisputeId(disputeId) {
         Dispute storage dispute = disputes[disputeId];
         require(now > dispute.endTime, "Voting period has not ended.");
@@ -151,13 +152,17 @@ contract DisputeResolutionDAO {
     }
 
     /**
-    * Vote on a dispute.
+    * @dev Vote on a dispute as a reviewer.
     *
     * Considerations:
-    * - You must be who you say you are (userId wise) 
-    * - You must be a reviewer 
-    * - Reviewer can only vote once on a given dispute
-    * - You cannot vote for a dispute where the client and freelancer is also yourself
+    * - The user calling must match the reviewerId.
+    * - Reviewers can only vote once on a given dispute.
+    * - Reviewers cannot vote for a dispute where they are the client or freelancer involved.
+    * - Dispute must be in the PENDING status.
+    *
+    * @param reviewerId The unique identifier of the reviewer casting the vote.
+    * @param disputeId The unique identifier of the dispute being voted on.
+    * @param voteChoice The vote choice (APPROVE or REJECT) cast by the reviewer.
     */
     function vote(uint256 reviewerId, uint256 disputeId, Vote voteChoice) external validDisputeId(disputeId) userIdMatches(reviewerId) {
         Dispute storage dispute = disputes[disputeId];
@@ -185,6 +190,18 @@ contract DisputeResolutionDAO {
         emit voted(disputeId, reviewerId, voteChoice);
     }
 
+    /**
+    * @dev Distribute tokens to voters after a dispute resolution.
+    *
+    * Considerations:
+    * - The dispute must be resolved (either APPROVED or REJECTED).
+    * - Tokens are distributed to voters for the winning side, up to the maxNumberOfWinners.
+    * - If there are fewer winning voters than the maxNumberOfWinners, each will receive y tokens.
+    * - Any remaining tokens are refunded to the client.
+    *
+    * @param disputeId The unique identifier of the resolved dispute.
+    * @param winningVote The winning vote (APPROVE or REJECT) in the dispute.
+    */
     function distributeTokensToVoters(uint256 disputeId, Vote winningVote) internal {
         // Todo: Escrow distributes tokens to voters for the specified maxNumberOfWinners of the winning majority.
         // If there are more than the specified maxNumberOfWinners of the winning majority, we will randomly pick the specified maxNumberOfWinners of them. (y tokens each)
@@ -196,6 +213,7 @@ contract DisputeResolutionDAO {
         uint256[] memory winningVoters = new uint256[](disputeVoters[disputeId].length);
         uint256 counter = 0;
 
+        // Loop through all the voters, and add the ones that voted for the winning party to the winningVoters array
         for (uint256 i = 0; i < disputeVoters[disputeId].length; i++) {
             uint256 userId = disputeVoters[disputeId][i];
             Vote userVote = mapUserToVote[disputeId][userId];
@@ -228,6 +246,7 @@ contract DisputeResolutionDAO {
             // If more than the specified maxNumberOfWinners, randomly pick the specified maxNumberOfWinners from the winning pool
             bool[] memory rewarded = new bool[](counter); 
 
+            // Randomly pick the specified maxNumberOfWinners from the winning pool
             for (uint256 i = 0; i < maxNumberOfWinners; i++) {
                 uint256 randomIndex = uint256(keccak256(abi.encodePacked(block.timestamp, i))) % counter;
 
@@ -244,13 +263,15 @@ contract DisputeResolutionDAO {
         }
     }
 
-
-    // This function should not exist in production, but is here for demo purposes
+    /**
+    * @dev Manually end voting on a dispute. This function is for demo purposes and should not exist in production.
+    *
+    * @param disputeId The unique identifier of the dispute to end voting on.
+    */
     function manuallyTriggerEndVoting(uint256 disputeId) external validDisputeId(disputeId) {
         Dispute storage dispute = disputes[disputeId];
         // Set the endTime to a past timestamp to circumvent the require statement in the thing
         dispute.endTime = block.timestamp - 1;
         resolveDispute(disputeId);
     }
-    // ============================================================== METHODS ============================================================= //
 }
