@@ -41,7 +41,7 @@ A blockchain-based job marketplace with dispute resolution, where clients and fr
    - Run `truffle migrate`
 
 6. (Optionally) Run tests:
-   - Run `truffle test`
+   - Run all 47 test cases `truffle test`
    - Or run a specific test file with `truffle test ./test/test_market.js`
 
 ### Functional Workflow
