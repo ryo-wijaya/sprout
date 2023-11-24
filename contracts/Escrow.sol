@@ -25,6 +25,12 @@ contract Escrow {
         EscrowStatus status;
     }
 
+    address private owner;
+
+    User public userContract;
+    address public jobListingAddress; // This is for access control to contract functions
+    address public disputeResolutionDAOAddress; // This is for access control to contract functions
+
     // The number of tokens client must stake in the potential event of a dispute (business rule)
     uint256 public stakedTokens;
     // The number of tokens each voter gets as a reward for voting (business rule)
@@ -32,10 +38,12 @@ contract Escrow {
 
     uint256 public numPayments = 0;
     SproutToken sproutTokenContract;
-    User public userContract; // Reference to the User Contract
+
     mapping(uint256 => Payment) public payments;
 
     constructor(address _userContract, address _sproutTokenContract, uint256 _stakedTokens, uint256 _eachVoterReward) public {
+        owner = msg.sender;
+
         userContract = User(_userContract);
         sproutTokenContract = SproutToken(_sproutTokenContract);
 
@@ -51,6 +59,28 @@ contract Escrow {
     event PaymentPartiallyRefunded(uint256 _paymentId); // This means the escrow balance is not yet 0
     event PaymentRefunded(uint256 _paymentId);
     event VoterReward(uint256 _paymentId, address voterAddress);
+
+    modifier onlyContractOwner() {
+        require(msg.sender == owner, "Caller is not the contract owner");
+        _;
+    }
+
+    // Modifier to restrict access to the JobListing contract
+    modifier onlyJobListing() {
+        require(msg.sender == jobListingAddress, "Only JobListing contract can call this function");
+        _;
+    }
+
+    // Modifier to restrict access to the DisputeResolutionDAO contract
+    modifier onlyDisputeResolutionDAO() {
+        require(msg.sender == disputeResolutionDAOAddress, "Only DisputeResolutionDAO contract can call this function");
+        _;
+    }
+
+    modifier onlyJobListingOrDAO() {
+        require(msg.sender == jobListingAddress || msg.sender == disputeResolutionDAOAddress, "Only JobListing or DisputeResolutionDAO contract can call this function");
+        _;
+    }
 
     // Check that the freelancer and client came from different address
     modifier differentAddresses(uint256 _freelancerId, uint256 _clientId) {
@@ -92,7 +122,7 @@ contract Escrow {
     * @param _amount The amount of SproutTokens to be paid.
     * @return uint256 unique identifier of the created payment object.
     */
-    function initiatePayment(uint256 _clientId, uint256 _freelancerId, uint256 _jobId, uint256 _amount) public payable differentAddresses(_freelancerId, _clientId) isClient(_clientId) isFreelancer(_freelancerId) returns (uint256) {
+    function initiatePayment(uint256 _clientId, uint256 _freelancerId, uint256 _jobId, uint256 _amount) public differentAddresses(_freelancerId, _clientId) isClient(_clientId) isFreelancer(_freelancerId) onlyJobListing() returns (uint256) {
         address clientAddress = userContract.getAddressFromUserId(_clientId);
         
         //Check that client does indeed have amount he wants to give
@@ -131,7 +161,7 @@ contract Escrow {
     * @param _paymentId The ID of the escrow payment.
     * @param withStakedTokens A boolean indicating whether to include staked tokens in the payment to the freelancer.
     */
-    function confirmDelivery(uint256 _paymentId, bool withStakedTokens) public payable validPaymentId(_paymentId) {
+    function confirmDelivery(uint256 _paymentId, bool withStakedTokens) public validPaymentId(_paymentId) onlyJobListingOrDAO() {
         Payment storage payment = payments[_paymentId];
 
         require(payment.status == EscrowStatus.AWAITING_PAYMENT, "Invalid payment status");
@@ -164,7 +194,7 @@ contract Escrow {
     *
     * @param _paymentId The ID of the escrow payment to be refunded.
     */
-    function refundPayment(uint256 _paymentId) public validPaymentId(_paymentId) {
+    function refundPayment(uint256 _paymentId) public validPaymentId(_paymentId) onlyDisputeResolutionDAO(){
         Payment storage payment = payments[_paymentId];
         require(payment.status == EscrowStatus.AWAITING_PAYMENT, "Invalid payment status");
 
@@ -188,7 +218,7 @@ contract Escrow {
     * @param _paymentId The ID of the escrow payment associated with the job in dispute.
     * @param voterAddress The address of the voter receiving the reward.
     */
-    function rewardVoter(uint256 _paymentId, address voterAddress) public validPaymentId(_paymentId) {
+    function rewardVoter(uint256 _paymentId, address voterAddress) public validPaymentId(_paymentId) onlyDisputeResolutionDAO() {
         Payment storage payment = payments[_paymentId];
         require(payment.status == EscrowStatus.PARTIALLY_REFUNDED, "Invalid payment status");
 
@@ -212,7 +242,7 @@ contract Escrow {
     *
     * @param _paymentId The ID of the escrow payment for which the remaining balance is to be refunded.
     */
-    function refundTokenBalance(uint256 _paymentId) public validPaymentId(_paymentId) {
+    function refundTokenBalance(uint256 _paymentId) public validPaymentId(_paymentId) onlyDisputeResolutionDAO() {
         Payment storage payment = payments[_paymentId];
         require(payment.status == EscrowStatus.PARTIALLY_REFUNDED, "Invalid payment status");
 
@@ -275,4 +305,31 @@ contract Escrow {
         return payments[_paymentId].status;
     }
 
+    /**
+    * @dev Sets the address of the JobListing contract. This function can only be called once.
+    *
+    * This function allows the contract owner to set the address of the JobListing contract. 
+    * It is critical for linking the Escrow contract with the JobListing contract.
+    *
+    * @notice Can only be called by the contract owner and only once.
+    * @param _jobListingAddress The address of the JobListing contract to be linked.
+    */
+    function setJobListingAddress(address _jobListingAddress) public onlyContractOwner() {
+        require(jobListingAddress == address(0), "JobListing address already set");
+        jobListingAddress = _jobListingAddress;
+    }
+
+    /**
+    * @dev Sets the address of the DisputeResolutionDAO contract. This function can only be called once.
+    *
+    * This function allows the contract owner to set the address of the DisputeResolutionDAO contract.
+    * It is essential for linking the Escrow contract with the DisputeResolutionDAO for dispute management.
+    *
+    * @notice Can only be called by the contract owner and only once.
+    * @param _disputeResolutionDAOAddress The address of the DisputeResolutionDAO contract to be linked.
+    */
+    function setDisputeResolutionDAOAddress(address _disputeResolutionDAOAddress) public onlyContractOwner() {
+        require(disputeResolutionDAOAddress == address(0), "disputeResolutionDAOAddress address already set");
+        disputeResolutionDAOAddress = _disputeResolutionDAOAddress;
+    }
 }
