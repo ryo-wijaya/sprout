@@ -15,10 +15,11 @@ contract SproutToken {
     }
 
     /**
-    * @dev Function to give NT to the recipient for a given wei amount
+    * @dev Function to give NT (SproutToken) to the recipient for a given wei amount
+    *
     * @param recipient address of the recipient that wants to buy the NT
     * @param weiAmt uint256 amount indicating the amount of wei that was passed
-    * @return A uint256 representing the amount of NT bought by the msg.sender.
+    * @return uint256 representing the amount of NT bought by the msg.sender.
     */
     function getCredit(address recipient, uint256 weiAmt)
         public
@@ -29,16 +30,18 @@ contract SproutToken {
         return amt;
     }
     /**
-    * @dev Function to check the amount of NT the msg.sender has
+    * @dev Function to check the amount of NT (SproutToken) the msg.sender has
+    *
     * @param ad address of the recipient that wants to check their NT
-    * @return A uint256 representing the amount of NT owned by the msg.sender.
+    * @return uint256 representing the amount of NT owned by the msg.sender.
     */
     function checkCredit(address ad) public view returns (uint256) {
         uint256 credit = erc20Contract.balanceOf(ad);
         return credit;
     }
     /**
-    * @dev Function to transfer the credit from the owner to the recipient
+    * @dev Function to transfer the credits from the owner to the recipient
+    *
     * @param recipient address of the recipient that will gain in NT
     * @param amt uint256 amount of NT to transfer
     */
@@ -47,10 +50,23 @@ contract SproutToken {
         erc20Contract.transfer(recipient, amt);
     }
     
+    /**
+    * @dev Function to transfer NT (SproutToken) from one address to another.
+    *
+    * @param from Address from which NT is being transferred.
+    * @param recipient Address of the recipient who will receive the NT.
+    * @param amt The amount of NT to be transferred.
+    */
     function transferFrom(address from, address recipient, uint256 amt) public {
         erc20Contract.transferFrom(from, recipient, amt);
     }
 
+    /**
+    * @dev Function to approve another address to spend a specified amount of NT on behalf of msg.sender.
+    *
+    * @param spender Address which will be authorized to spend the NT.
+    * @param amt The amount of NT that the spender is authorized to spend.
+    */
     function approve(address spender, uint256 amt) public {
         erc20Contract.approve(spender, amt);
     }

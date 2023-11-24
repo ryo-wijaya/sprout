@@ -20,6 +20,8 @@ module.exports = async (deployer, network, accounts) => {
    * x is also passed into the jobListing contract
    */
   await deployer.deploy(Escrow, User.address, SproutToken.address, x, y);
+  const escrowInstance = await Escrow.deployed();
+
   await deployer.deploy(JobListing, User.address, Escrow.address, x);
   await deployer.deploy(JobReview, User.address, JobListing.address);
   /*
@@ -33,4 +35,8 @@ module.exports = async (deployer, network, accounts) => {
     Escrow.address,
     maxNumberOfWinners
   );
+
+  // Set the JobListing address and the DisputeResolutionDAO address in the Escrow contract, this can only be done once and only by the contract owner
+  await escrowInstance.setJobListingAddress(JobListing.address);
+  await escrowInstance.setDisputeResolutionDAOAddress(DisputeResolutionDAO.address);
 };
