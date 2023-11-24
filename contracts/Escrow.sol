@@ -203,8 +203,7 @@ contract Escrow {
     * @dev Refunds the remaining token balance to the client after dispute resolution.
     *
     * This function is used to refund the leftover tokens in the escrow (if any) to the client
-    * after the dispute resolution process. This typically happens when fewer than 10 reviewers have
-    * voted, leaving some of the staked tokens unallocated.
+    * after the dispute resolution process. This typically happens when there is too few winning voters than the stipulated staked token rewards * number of voters values
     *
     * Considerations:
     * - The function can only be called for payments that are in the PARTIALLY_REFUNDED status.

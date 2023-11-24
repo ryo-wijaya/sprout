@@ -10,6 +10,8 @@ contract User {
     * off-chain methods or through Ethereum's built-in cryptographic functions. 
     * Storing sensitive information like passwords on-chain is not recommended due to transparency of blockchain data. 
     * Instead, external identity verification services can be used for user authentication. Wallet-based authentication is also an option.
+    *
+    * We also assume some sort of off-chain user verification mechanism to discourage the risk of sybil attacks.
     */
     struct UserProfile {
         UserType userType;
