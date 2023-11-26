@@ -11,6 +11,7 @@ const maxNumberOfWinners = x * y; // The maximum number of winners that can be r
 
 module.exports = async (deployer, network, accounts) => {
   await deployer.deploy(User);
+  const userInstance = await User.deployed(); 
   await deployer.deploy(SproutToken);
   /*
    * We deploy the escrow contract with 10 tokens (x) as the amount for a client to stake in case of a potential dispute,
@@ -39,4 +40,7 @@ module.exports = async (deployer, network, accounts) => {
   // Set the JobListing address and the DisputeResolutionDAO address in the Escrow contract, this can only be done once and only by the contract owner
   await escrowInstance.setJobListingAddress(JobListing.address);
   await escrowInstance.setDisputeResolutionDAOAddress(DisputeResolutionDAO.address);
+  // Set the JobReview address in the User contract
+  await userInstance.setJobReviewAddress(JobReview.address); 
+
 };

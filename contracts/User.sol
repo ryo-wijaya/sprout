@@ -24,6 +24,8 @@ contract User {
 
     address private owner;
 
+    address public jobReviewAddress; // This is for access control to contract functions
+
     uint256 private numUsers = 1;
     mapping(uint256 => UserProfile) private users;
     // This is a mapping of address -> userType (0 means Freelancer) -> userId
@@ -62,10 +64,8 @@ contract User {
         _;
     }
 
-    modifier notAUser() {
-        require(addressToUserTypeId[msg.sender][uint(UserType.Freelancer)] == 0 ||
-        addressToUserTypeId[msg.sender][uint(UserType.Client)] == 0 || 
-        addressToUserTypeId[msg.sender][uint(UserType.Reviewer)] == 0, "Caller is a User");
+    modifier onlyJobReview() {
+        require(msg.sender == jobReviewAddress, "Caller is not the Job Review Contract");
         _;
     }
 
@@ -140,7 +140,7 @@ contract User {
     * @param userId The unique identifier of the user.
     * @param newRating The new rating of the user
     */
-    function updateUserRating(uint256 userId, uint256 newRating) public validUserId(userId) notAUser() {
+    function updateUserRating(uint256 userId, uint256 newRating) public validUserId(userId) onlyJobReview() {
         users[userId].rating = newRating;
         emit UserRatingUpdated(userId, newRating);
     }
@@ -245,5 +245,19 @@ contract User {
         // Transfer Ether to the owner's address
         address payable ownerAddress = address(uint160(owner));
         ownerAddress.transfer(amount);
+    }
+
+    /**
+    * @dev Sets the address of the JobReview contract. This function can only be called once.
+    *
+    * This function allows the contract owner to set the address of the JobReview contract.
+    * It is essential for linking the User contract with the JobReviewContract for checking for validity.
+    *
+    * @notice Can only be called by the contract owner and only once.
+    * @param _jobReviewAddress The address of the JobReview contract to be linked.
+    */
+    function setJobReviewAddress(address _jobReviewAddress) public onlyContractOwner() {
+        require(jobReviewAddress == address(0), "jobReview address already set");
+        jobReviewAddress = _jobReviewAddress;
     }
 }

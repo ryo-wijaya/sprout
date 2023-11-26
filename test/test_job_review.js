@@ -235,8 +235,22 @@ contract("JobReview", (accounts) => {
     assert.equal(userDetails[5], 5, "User Rating was not updated");
   });
 
+  it("Test FAILURE: Freelancer tries to update their own rating", async () => {
+    await truffleAssert.reverts(
+      userInstance.updateUserRating(4, 5, {from: user2}),
+    "Caller is not the Job Review Contract"
+    );
+  })
+
   it("Test SUCCESS: Client's rating has been updated", async () => {
     let userDetails = await userInstance.getUserDetails(1);
     assert.equal(userDetails[5], 5, "User Rating was not updated");
   });
+
+  it("Test FAILURE: Client tries to update their own rating", async () => {
+    await truffleAssert.reverts(
+      userInstance.updateUserRating(1, 5, {from: user1}),
+    "Caller is not the Job Review Contract"
+    );
+  })
 });
