@@ -28,6 +28,7 @@ A blockchain-based job marketplace with dispute resolution, where clients and fr
 
 2. Install dependencies:
 
+   - cd into project folder
    - Run `npm i`
 
 3. Start up Ganache locally (Ensure that the server is running on port 7545).

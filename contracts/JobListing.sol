@@ -46,7 +46,7 @@ contract JobListing {
     uint256 private jobCount = 0;
     mapping(uint256 => Job) jobs; // Get job details here by jobId
     // This is a mapping of job -> applications -> application
-    mapping(uint256 => mapping(uint256 => Application)) private jobApplications;
+    mapping(uint256 => mapping(uint256 => Application)) jobApplications;
     // This is to keep track of the number of applications for a job
     mapping(uint256 => uint256) private jobApplicationCounts;
     // keep track of if a freelancer has already applied for a job
@@ -301,6 +301,7 @@ contract JobListing {
     * - You must be who you say you are (userId wise)
     * - The userId must be valid
     * - The jobId must be valid
+    * - The job must be in the ongoing state
     * - Only the freelancer tied to this job via an accepted application can complete the job
     * - The job should then be marked as completed
     *

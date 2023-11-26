@@ -6,8 +6,6 @@ import "./Escrow.sol";
 contract DisputeResolutionDAO {
 
     /*
-    * This contract will be referenced by the JobListing contract. This is to make it easier to do job related checks and handle escrow management at a single place
-    *
     * Key variable definitions:
     * - x (The amount of tokens staked by the client) will be specified by the deployer in the Escrow contract
     * - y (The amount of tokens rewarded to each winning reviewer) will be specified by the deployer in the Escrow contract
@@ -203,7 +201,6 @@ contract DisputeResolutionDAO {
     * @param winningVote The winning vote (APPROVE or REJECT) in the dispute.
     */
     function distributeTokensToVoters(uint256 disputeId, Vote winningVote) internal {
-        // Todo: Escrow distributes tokens to voters for the specified maxNumberOfWinners of the winning majority.
         // If there are more than the specified maxNumberOfWinners of the winning majority, we will randomly pick the specified maxNumberOfWinners of them. (y tokens each)
         // If there are less than the specified maxNumberOfWinners of the winning majority, we will distribute y tokens each to them. The rest will be refunded to the client.
         Dispute storage dispute = disputes[disputeId];
