@@ -102,6 +102,8 @@ contract JobReview {
         }
          // updates the average rating of the particular freelancer
         userToAvgRatings[_freelancerId] = newRating / userCurrentRatings.length;
+        uint256 newAvgRating = userToAvgRatings[_freelancerId];
+        userContract.updateUserRating(_freelancerId, newAvgRating);
         reviewCount++;
 
         emit FreelancerReviewed(_freelancerId);
@@ -151,8 +153,10 @@ contract JobReview {
         }
          // updates the average rating of the particular freelancer
         userToAvgRatings[_clientId] = newRating / userCurrentRatings.length;
+        uint256 newAvgRating = userToAvgRatings[_clientId];
+        userContract.updateUserRating(_clientId, newAvgRating);
         reviewCount++;
-
+        
         emit ClientReviewed(_clientId);
     }
 

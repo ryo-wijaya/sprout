@@ -40,6 +40,7 @@ contract User {
     // ====================================================== EVENTS & MODIFIERS ========================================================== //
     event NewUserRegistered(uint256 userId, UserType userType);
     event UserUpdated(uint256 userId);
+    event UserRatingUpdated(uint256 userId, uint256 newRating);
 
     modifier onlyUser(uint256 userId) {
         require(bytes(users[userId].username).length > 0, "Only registered users can perform this action");
@@ -61,6 +62,12 @@ contract User {
         _;
     }
 
+    modifier notAUser() {
+        require(addressToUserTypeId[msg.sender][uint(UserType.Freelancer)] == 0 ||
+        addressToUserTypeId[msg.sender][uint(UserType.Client)] == 0 || 
+        addressToUserTypeId[msg.sender][uint(UserType.Reviewer)] == 0, "Caller is a User");
+        _;
+    }
 
     // ============================================================== METHODS ============================================================= //
     /**
@@ -124,6 +131,19 @@ contract User {
         emit UserUpdated(userId);
     }
 
+    /**
+    * @dev Update the ratings of a user after a jobReview. 
+    *
+    * Considerations:
+    * - This function can only be called by the JobReview contract
+    *
+    * @param userId The unique identifier of the user.
+    * @param newRating The new rating of the user
+    */
+    function updateUserRating(uint256 userId, uint256 newRating) public validUserId(userId) notAUser() {
+        users[userId].rating = newRating;
+        emit UserRatingUpdated(userId, newRating);
+    }
     /**
     * @dev Return the user profile details. This custom getter is primarily for front-end use.
     *

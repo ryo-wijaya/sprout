@@ -229,4 +229,14 @@ contract("JobReview", (accounts) => {
       "Invalid rating, rating is a range between 1-5"
     );
   });
+
+  it("Test SUCCESS: Freelancer's rating has been updated", async () => {
+    let userDetails = await userInstance.getUserDetails(4);
+    assert.equal(userDetails[5], 5, "User Rating was not updated");
+  });
+
+  it("Test SUCCESS: Client's rating has been updated", async () => {
+    let userDetails = await userInstance.getUserDetails(1);
+    assert.equal(userDetails[5], 5, "User Rating was not updated");
+  });
 });
