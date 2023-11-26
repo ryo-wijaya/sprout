@@ -49,6 +49,8 @@ contract DisputeResolutionDAO {
     JobListing jobListingContract;
     Escrow escrowContract;
 
+    address private owner;
+
     uint256 public maxNumberOfWinners;
 
     uint256 private disputeCount = 0;
@@ -60,6 +62,8 @@ contract DisputeResolutionDAO {
 
 
     constructor(address userAddress, address jobListingAddress, address escrowAddress, uint256 _maxNumberOfWinners) public {
+        owner = msg.sender;
+
         userContract = User(userAddress);
         escrowContract = Escrow(escrowAddress);
         jobListingContract = JobListing(jobListingAddress);
@@ -78,6 +82,11 @@ contract DisputeResolutionDAO {
 
     modifier validDisputeId(uint256 disputeId) {
         require(disputeId > 0 && disputeId <= disputeCount, "Invalid dispute ID");
+        _;
+    }
+
+    modifier onlyContractOwner() {
+        require(msg.sender == owner, "Caller is not the contract owner");
         _;
     }
 
@@ -265,7 +274,7 @@ contract DisputeResolutionDAO {
     *
     * @param disputeId The unique identifier of the dispute to end voting on.
     */
-    function manuallyTriggerEndVoting(uint256 disputeId) external validDisputeId(disputeId) {
+    function manuallyTriggerEndVoting(uint256 disputeId) external validDisputeId(disputeId) onlyContractOwner() {
         Dispute storage dispute = disputes[disputeId];
         // Set the endTime to a past timestamp to circumvent the require statement in the thing
         dispute.endTime = block.timestamp - 1;
