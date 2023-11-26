@@ -2,7 +2,7 @@
 
 - A blockchain-based job marketplace with dispute resolution, where clients and freelancers engage in job contracts with integrated escrow services and a DAO for handling disputes, all facilitated by smart contracts on the Ethereum network.
 
-- `/docs/mini-design-document-and-remix-flow.md` for more info
+- See `/docs/mini-design-document-and-remix-flow.md` for more info
 
 **Contributors:**
 
