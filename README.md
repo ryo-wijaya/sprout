@@ -23,48 +23,44 @@
 
 ### Setup
 
-1. Ensure that you have the aforementioned node version.
+1. Ensure that you have the aforementioned node version
 
-   - Install truffle
+2. Install truffle
 
    ```bash
    npm install truffle -g
    ```
 
-   - Install Ganache from [Truffle Suite](https://trufflesuite.com/ganache/)
+3. Install Ganache from [Truffle Suite](https://trufflesuite.com/ganache/)
 
-2. Install dependencies:
-
-   - cd into project folder and install dependencies
+4. Install node dependencies
 
    ```bash
    cd sprout
    npm i
    ```
 
-3. Start up Ganache locally (Ensure that the server is running on port 7545).
+5. Start up Ganache locally (Ensure that the server is running on port 7545)
 
-4. Compile the Truffle project smart contracts into bytecode for the EVM:
+6. Compile the Truffle project smart contracts into bytecode for the EVM
 
    ```bash
    truffle compile
    ```
 
-5. Deploy the Truffle project smart contracts on the local Ganache blockchain:
+7. Deploy the Truffle project smart contracts on the local Ganache blockchain
 
    ```bash
    truffle migrate
    ```
 
-6. (Optionally) Run tests:
-
-   - Run all 51 test cases
+8. (Optionally) To run all 51 test cases
 
    ```bash
    truffle test
    ```
 
-   - Or run a specific test file
+9. (Optionally) To run a specific test file
 
    ```bash
    truffle test ./test/test_market.js
