@@ -110,7 +110,7 @@ Note that many of these functions, while public, can only be called with a certa
 
 
 
-## 1. Deployment
+## 1. Deployment (02:00)
 
 <u>**Perform the following actions with 1 account and remember the account address. This will be the contract owner for some of the contracts. Remember this user as (User 0)**</u>
 
@@ -153,7 +153,7 @@ Note that many of these functions, while public, can only be called with a certa
 
 
 
-## 2. SproutToken Contract (Obtain Tokens)
+## 2. SproutToken Contract - Obtain Tokens (06:06)
 
 This is our native ERC20 token contract.
 
@@ -168,7 +168,7 @@ This is our native ERC20 token contract.
 
 
 
-## 3. User Contract
+## 3. User Contract (07:51)
 
 This contract manages user registration. A user can be either a Freelancer, client, or Reviewer.
 
@@ -230,7 +230,7 @@ This contract manages user registration. A user can be either a Freelancer, clie
 
 
 
-## 4. JobListing Contract (No Dispute)
+## 4. JobListing Contract - No Dispute (13:15)
 
 This contract manages the flow of job creation, application, and completion. A job can either be closed, open, ongoing, completed or permanently closed. 
 
@@ -376,7 +376,7 @@ This contract manages the flow of job creation, application, and completion. A j
 
 
 
-## 5. SproutToken Contract (No Dispute Check)
+## 5. SproutToken Contract - No Dispute Check (27:33)
 
 1. **Check the client's balance**
    1. Call `checkCredit(User 1's address)`
@@ -387,7 +387,7 @@ This contract manages the flow of job creation, application, and completion. A j
 
 
 
-## 6. JobReview Contract
+## 6. JobReview Contract (28:43)
 
 This contract manages review creation for both the freelancer and the client.
 
@@ -427,7 +427,7 @@ This contract manages review creation for both the freelancer and the client.
 
 
 
-## 7. User Contract (Check Updated Ratings)
+## 7. User Contract - Check Updated Ratings (30:46)
 
 Ratings can be made for each party after any job flow is completed, including ones with a dispute. Ratings are used as a badge of trust. Low client ratings can indicate that the client starts disputes often, possibly due to poor or changing job requirements which is blamed on the freelancer for example. Low freelancer ratings can indicate consistently poor work.
 
@@ -440,7 +440,7 @@ Ratings can be made for each party after any job flow is completed, including on
 
 
 
-## 8. JobListing Contract (With Dispute)
+## 8. JobListing Contract - With Dispute (32:06)
 
 Previously we demo-ed the flow for a successful client-freelancer transaction without a dispute. Now we will set up an identical scenario, but this time the client does not choose to accept the job's completion. First, let's set up a similar scenario as before, this time **replacing every JobID with 2 instead of 1**.
 
@@ -474,7 +474,7 @@ Previously we demo-ed the flow for a successful client-freelancer transaction wi
 
 
 
-## 9. DisputeResolutionDAO Contract
+## 9. DisputeResolutionDAO Contract (34:08)
 
 This contract manages the creation of disputes, voting, and payouts after the dispute outcome.
 
@@ -568,7 +568,7 @@ This contract manages the creation of disputes, voting, and payouts after the di
 
 
 
-## 10. SproutToken Contract (Dispute Check)
+## 10. SproutToken Contract - After Dispute Check (46:52)
 
 1. **Check the client's balance** (previous balance was 85)
    1. Call `checkCredit(User 1's address)`
@@ -579,7 +579,7 @@ This contract manages the creation of disputes, voting, and payouts after the di
 
 
 
-## Conclusion
+## Conclusion (48:05)
 
 Note that all the escrow functions to manage the flow of tokens is not publicly callable. In the beginning of the demo during deployment, there was access right control set up by the contract owner to ensure that only a specific instance of the JobListing and DisputeResolutionDAO contract can call these functions. 
 
