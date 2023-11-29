@@ -14,6 +14,10 @@ This is the walkthrough text requirement specified under **Code Implementation -
 
 
 
+A link to the demo video pertaining to this walkthrough can be found here: https://drive.google.com/file/d/1ta9Jar93Ac8LM5Px_m-h0kAmhdyQrMaK/view?usp=sharing. Each section has been updated with the relevant timestamps.
+
+
+
 ## Overview of contract functions
 
 Note that many of these functions, while public, can only be called with a certain access right. For example, Escrow contract functions can only be called by the JobListing and DisputeResolutionDAO contract that has their addresses set by the contract owner.
