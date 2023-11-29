@@ -7,11 +7,11 @@ contract JobListing {
     // ===================================================== SCHEMA & STATE VARIABLES ===================================================== //
 
     enum JobStatus {
-        CLOSED,
-        OPEN,
-        ONGOING,
-        COMPLETED,
-        PERMANENTLY_CLOSED
+        CLOSED, // This is when the client closes the job, no more applications
+        OPEN, // This is when the client creates the job, open for applications
+        ONGOING, // This is when the client accepts an application and the job is ongoing
+        COMPLETED, // This is when the freelancer marks the job as complete
+        PERMANENTLY_CLOSED // This is when the client accepts the job as complete, this job is done and uninteractable
     }
 
     /**
@@ -44,9 +44,9 @@ contract JobListing {
     uint256 public stakedTokens;
 
     uint256 private jobCount = 0;
-    mapping(uint256 => Job) jobs; // Get job details here by jobId
+    mapping(uint256 => Job) public jobs; // Get job details here by jobId
     // This is a mapping of job -> applications -> application
-    mapping(uint256 => mapping(uint256 => Application)) jobApplications;
+    mapping(uint256 => mapping(uint256 => Application)) public jobApplications;
     // This is to keep track of the number of applications for a job
     mapping(uint256 => uint256) private jobApplicationCounts;
     // keep track of if a freelancer has already applied for a job

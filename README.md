@@ -2,7 +2,7 @@
 
 - A blockchain-based job marketplace with dispute resolution, where clients and freelancers engage in job contracts with integrated escrow services and a DAO for handling disputes, all facilitated by smart contracts on the Ethereum network.
 
-- See [Mini Design Document and Remix Flow](docs/mini-design-document-and-remix-flow.md) for more info
+- See [Walkthrough Flow](docs/walkthrough.md) for more info
 
 **Contributors:**
 
@@ -44,7 +44,7 @@
    - Run `truffle migrate`
 
 6. (Optionally) Run tests:
-   - Run all 47 test cases `truffle test`
+   - Run all 51 test cases `truffle test`
    - Or run a specific test file with `truffle test ./test/test_market.js`
 
 ### Functional Workflow

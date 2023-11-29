@@ -1,8 +1,16 @@
-# Mini Design Document and Remix Demo Flow
+# Walkthrough Text
 
-This document contains a surface level overview of the contract functions. For more details on the design, please refer to Group 4's project report.
+This is the walkthrough text requirement specified under **Code Implementation - Documentation**.
 
-This demo flow is designed for https://remix.ethereum.org/ and will focus on the happy paths for the application. For proof of exception path validations, kindly refer to the test cases under `/test`.
+**Sprout**: A blockchain-based job marketplace with dispute resolution, where clients and freelancers engage in job contracts with integrated escrow services and a DAO for handling disputes, all facilitated by smart contracts on the Ethereum network.
+
+**Basic flow**: Clients can post jobs that freelancers can apply for. Funds will be managed in a escrow. Reviews can be made post-job completion and there is a DAO to manage disputes. More details on the functional workflow can be found in the README file. 
+
+* This document contains a surface level overview of the contract functions. For more details on the design, please refer to Group 4's project report.
+
+* This demo flow is designed for https://remix.ethereum.org/ and will focus on the happy paths for the application. For proof of exception path validations, kindly refer to the test cases under `/test`.
+
+* This document will also be included in the report and in the repository for reference.
 
 
 
@@ -120,7 +128,7 @@ Note that many of these functions, while public, can only be called with a certa
 
    * Notes
      * The owner is able to dynamically specify the number of tokens a Client must stake for each job, these tokens will come into effect in the even of a dispute only. The owner can also specify the number of tokens a winning voter should get in the event of a dispute's voting conclusion.
-     * For simplicity, we define the values above. This means that up to 10 voters from the winning pool will be rewarded 1 token each upon voting conclusion. In our project these values are specified in the deployment script, but in Remix we define it manually here.
+     * For simplicity, we define the values above. This means that the contract deployer has decided that up to 10 voters from the winning pool will be rewarded 1 token each upon voting conclusion. In our project these values are specified in the deployment script, but in Remix we define it manually here.
 
 5. **Deploy** `JobListing.sol` with the addresses of the User and Escrow contracts
 
@@ -138,15 +146,22 @@ Note that many of these functions, while public, can only be called with a certa
 
    2. Specify the deployed jobListing and disputeResolutionDAO contract addresses
 
+9. **Set the user contract's jobReview address** for ratings management
+
+   1. Call `setJobReviewAddress`
+
+
 
 
 ## 2. SproutToken Contract (Obtain Tokens)
 
+This is our native ERC20 token contract.
+
 <u>**Perform the following with new accounts  (for `i` from  Users`1-5`)**</u>
 
-1. Top up 100 credits each with ETH (1 ETH gets you 100 tokens)
+1. Top up 100 credits each with ETH (1 ETH gets you 100 tokens, and 1 ETH is 10^18 wei)
 
-   1. Call `getCredit(user ${i}'s address)` 
+   1. Call `getCredit(user ${i}'s address, 1000000000000000000)` 
 
    * Notes
      * This exchange rate is arbitrarily chosen for demo purposes
@@ -154,6 +169,8 @@ Note that many of these functions, while public, can only be called with a certa
 
 
 ## 3. User Contract
+
+This contract manages user registration. A user can be either a Freelancer, client, or Reviewer.
 
 **<u>Perform the following with the Client account to be (User 1)</u>**
 
@@ -184,9 +201,11 @@ Note that many of these functions, while public, can only be called with a certa
    * Call `getUserDetails(1)`
 
 4. **Frontend gets the total number of users (e.g. for site metrics)**
+   
    * Call `getTotalUsers()`
-
+   
 5. **Other functions** (do not execute)
+   
    1. `transferOwnership` - Transfer ownership of the contract to another address
    2. `withdrawEther` - Withdraw Ether held in this contract to the owner's address (so funds will not be trapped)
 
@@ -212,6 +231,8 @@ Note that many of these functions, while public, can only be called with a certa
 
 
 ## 4. JobListing Contract (No Dispute)
+
+This contract manages the flow of job creation, application, and completion. A job can either be closed, open, ongoing, completed or permanently closed. 
 
 **<u>Perform the following with the Client account (User 1)</u>**
 
@@ -368,6 +389,10 @@ Note that many of these functions, while public, can only be called with a certa
 
 ## 6. JobReview Contract
 
+This contract manages review creation for both the freelancer and the client.
+
+<u>**Perform the following with the Client account (User 1)**</u>
+
 1. **Client creates a review for the freelancer**
 
    1. Call `createFreelancerReview(1, 2, 1, 4, 'The art is well drawn')`
@@ -378,7 +403,11 @@ Note that many of these functions, while public, can only be called with a certa
      * Rating must be an integer from 1-5
      * Only 1 review can be given per completed job
 
-2. **Freelancer creates a review for the client**
+
+
+<u>**Perform the following with the Freelancer account (User 2)**</u>
+
+1. **Freelancer creates a review for the client**
 
    1. Call `createClientReview(1, 2, 1, 5, 'The job description is clear and accurate')`
 
@@ -388,11 +417,11 @@ Note that many of these functions, while public, can only be called with a certa
      * Rating must be an integer from 1-5
      * Only 1 review can be given per completed job
 
-3. **Frontend displays a user's reviews**
+2. **Frontend displays a user's reviews**
 
    1. Call `userToReviews` mapping
 
-4. **Frontend displays a review's details**
+3. **Frontend displays a review's details**
 
    1. Call `getReviewDetails(1)`
 
@@ -404,10 +433,10 @@ Ratings can be made for each party after any job flow is completed, including on
 
 1. **Check the Client's current average rating**
    1. Call `getUserDetails(1)`
-      * This should be 5 / 1 = 1
+      * This should be 5 / 1 = 5
 2. **Check the Freelancer's current average rating**
    1. Call `getUserDetails(2)`
-      * This should be 4 / 1 = 5
+      * This should be 4 / 1 = 4
 
 
 
@@ -446,6 +475,8 @@ Previously we demo-ed the flow for a successful client-freelancer transaction wi
 
 
 ## 9. DisputeResolutionDAO Contract
+
+This contract manages the creation of disputes, voting, and payouts after the dispute outcome.
 
 * The client is not happy with the work for JobID 2 and wishes to start a dispute. The rules of a dispute are such:
   * Remember, the client has staked 10 tokens in the escrow for this scenario.
@@ -541,7 +572,7 @@ Previously we demo-ed the flow for a successful client-freelancer transaction wi
 
 1. **Check the client's balance** (previous balance was 85)
    1. Call `checkCredit(User 1's address)`
-      * This should be 85 - 15 (job reward) - 10 (staked tokens) = 60
+      * This should be 85 - 15 (job reward) - 2 (staked tokens) = 68
 2. **Check the freelancer's balance** (previous balance was 115)
    1. Call `checkCredit(User 2's address)`
       * This should be 115 + 15 (job reward) = 130
