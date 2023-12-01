@@ -189,7 +189,6 @@ contract Escrow {
     *
     * Considerations:
     * - The payment status must be AWAITING_PAYMENT.
-    * - The msg.sender must be the client of the particular payment.
     * - The job cannot be COMPLETED (already checked by the JobListing contract).
     *
     * @param _paymentId The ID of the escrow payment to be refunded.

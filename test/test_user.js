@@ -5,7 +5,7 @@ var User = artifacts.require("User");
 
 contract("User", (accounts) => {
   let userInstance;
-  const owner = accounts[0]; // Do we want to implement the Ownership pattern?
+  const owner = accounts[0];
   const user1 = accounts[1];
   const user2 = accounts[2];
 

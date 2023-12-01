@@ -1,6 +1,8 @@
-### Info
+### Info (Sprout)
 
-A blockchain-based job marketplace with dispute resolution, where clients and freelancers engage in job contracts with integrated escrow services and a DAO for handling disputes, all facilitated by smart contracts on the Ethereum network.
+- A blockchain-based job marketplace with dispute resolution, where clients and freelancers engage in job contracts with integrated escrow services and a DAO for handling disputes, all facilitated by smart contracts on the Ethereum network.
+
+- See [Walkthrough Flow](docs/walkthrough.md) for more info
 
 **Contributors:**
 
@@ -21,28 +23,48 @@ A blockchain-based job marketplace with dispute resolution, where clients and fr
 
 ### Setup
 
-1. Ensure that you have the aforementioned node version.
+1. Ensure that you have the aforementioned node version
 
-   - Install truffle globally with `npm install truffle -g`
-   - Install Ganache from [Truffle Suite](https://trufflesuite.com/ganache/)
+2. Install truffle
 
-2. Install dependencies:
+   ```bash
+   npm install truffle -g
+   ```
 
-   - Run `npm i`
+3. Install Ganache from [Truffle Suite](https://trufflesuite.com/ganache/)
 
-3. Start up Ganache locally (Ensure that the server is running on port 7545).
+4. Install node dependencies
 
-4. Compile the Truffle project smart contracts into bytecode for the EVM:
+   ```bash
+   cd sprout
+   npm i
+   ```
 
-   - Run `truffle compile`
+5. Start up Ganache locally (Ensure that the server is running on port 7545)
 
-5. Deploy the Truffle project smart contracts on the local Ganache blockchain:
+6. Compile the Truffle project smart contracts into bytecode for the EVM
 
-   - Run `truffle migrate`
+   ```bash
+   truffle compile
+   ```
 
-6. (Optionally) Run tests:
-   - Run all 47 test cases `truffle test`
-   - Or run a specific test file with `truffle test ./test/test_market.js`
+7. Deploy the Truffle project smart contracts on the local Ganache blockchain
+
+   ```bash
+   truffle migrate
+   ```
+
+8. (Optionally) To run all 51 test cases
+
+   ```bash
+   truffle test
+   ```
+
+9. (Optionally) To run a specific test file
+
+   ```bash
+   truffle test ./test/test_market.js
+   ```
 
 ### Functional Workflow
 
