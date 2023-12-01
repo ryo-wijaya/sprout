@@ -48,6 +48,7 @@ Note that many of these functions, while public, can only be called with a certa
 10. `isReviewer`
 11. `transferOwnership`
 12. `withdrawEther`
+13. `setJobReviewAddress`
 
 
 
@@ -131,7 +132,7 @@ Note that many of these functions, while public, can only be called with a certa
    2. Specify  `1` for the `_eachVoterReward` parameter
 
    * Notes
-     * The owner is able to dynamically specify the number of tokens a Client must stake for each job, these tokens will come into effect in the even of a dispute only. The owner can also specify the number of tokens a winning voter should get in the event of a dispute's voting conclusion.
+     * The owner is able to dynamically specify the number of tokens a Client must stake for each job, these tokens will come into effect in the event of a dispute only. The owner can also specify the number of tokens a winning voter should get in the event of a dispute's voting conclusion.
      * For simplicity, we define the values above. This means that the contract deployer has decided that up to 10 voters from the winning pool will be rewarded 1 token each upon voting conclusion. In our project these values are specified in the deployment script, but in Remix we define it manually here.
 
 5. **Deploy** `JobListing.sol` with the addresses of the User and Escrow contracts
